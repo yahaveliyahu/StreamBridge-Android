@@ -1,0 +1,108 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- Header like Samsung Flow -->
+    <RelativeLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <!-- Back arrow on the left -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/backButton"
+            android:layout_width="59dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:padding="8dp"
+            android:text="@string/back_browser" />
+
+        <!-- Title + status on the right -->
+        <LinearLayout
+            android:id="@+id/titleBlock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/backButton"
+            android:layout_centerVertical="true"
+            android:orientation="vertical"
+            android:gravity="start">
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/appTitleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/stream_bridge"
+                android:textStyle="bold"
+                android:textSize="22sp"
+                android:textColor="@color/black"/>
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/desktop_xxxxx"
+                android:textSize="16sp"
+                android:textColor="#2F6DFF"/>
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <!-- Chat / history -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/chatRecycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="10dp"
+        android:overScrollMode="never"
+        android:scrollbars="vertical"/>
+
+    <!-- Bottom input (Send + EditText + Plus) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        android:gravity="center_vertical">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/sendButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_circle_button"
+            android:src="@drawable/ic_send"
+            android:padding="10dp"
+            android:contentDescription="@string/send"/>
+
+        <androidx.appcompat.widget.AppCompatEditText
+            android:id="@+id/messageEditText"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_message_input"
+            android:hint="@string/messageBox"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:inputType="textMultiLine"
+            android:maxLines="3"/>
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/plusButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_circle_button"
+            android:src="@drawable/ic_plus"
+            android:padding="10dp"
+            android:contentDescription="@string/attach"/>
+    </LinearLayout>
+
+</LinearLayout>

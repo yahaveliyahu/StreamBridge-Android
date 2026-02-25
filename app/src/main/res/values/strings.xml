@@ -1,0 +1,81 @@
+<resources>
+    <string name="app_name">StreamBridge</string>
+
+    <string name="status_connected">מחובר באמצעות %1$s.</string>
+
+    <string name="connected_to">Connected to %1$s</string>
+
+    <string name="status_running">Status: Running</string>
+    <string name="status_stopped">Status: Stopped</string>
+    <string name="ip_display">IP Address: %1$s\nPort: %2$d</string>
+    <string name="please_start_server_first">Please start server first</string>
+    <string name="server_started">Server started</string>
+    <string name="server_stopped">Server stopped</string>
+    <string name="could_not_get_ip">Could not get IP address</string>
+
+
+
+
+
+    <string name="start_streaming">Start Streaming</string>
+    <string name="back">Back</string>
+
+    <string name="back_browser">Back</string>
+    <string name="stream_bridge">Stream Bridge</string>
+    <string name="desktop_xxxxx">מחובר באמצעות DESKTOP-XXXXX.</string>
+    <string name="send">Send</string>
+    <string name="messageBox">הזן הודעה</string>
+    <string name="attach">Attach</string>
+
+    <string name="streambridge">StreamBridge</string>
+    <string name="status_stopped_main">Status: Stopped</string>
+    <string name="ip_address">IP Address: --</string>
+    <string name="start_server">Start Server</string>
+    <string name="stop_server">Stop Server</string>
+    <string name="scan_qr_code_to_connect">Scan QR Code to Connect</string>
+    <string name="features">Features</string>
+    <string name="camera_streaming_live">📷 Camera Streaming LIVE</string>
+    <string name="data_migration_chat">chat</string>
+    <string name="_1_start_the_server_n2_on_pc_scan_qr_code_or_it_will_auto_discover">1. Start the server\n2. On PC: Scan QR code or it will auto-discover</string>
+
+    <string name="point_camera_at_qr_code_on_pc_screen">Point camera at QR code on PC screen</string>
+    <string name="back_qr">Back</string>
+
+    <string name="sound">שמע</string>
+    <string name="file">הקבצים שלי</string>
+    <string name="video">וידאו</string>
+    <string name="picture">תמונה</string>
+    <string name="notes">Notes</string>
+    <string name="contact">אנשי קשר</string>
+    <string name="camera">מצלמה</string>
+
+    <string name="label">Label</string>
+
+    <string name="date">Date</string>
+
+    <string name="file_jpg">file.jpg</string>
+    <string name="fileAdd">+ קובץ 1 נוסף</string>
+    <string name="history">הצג היסטוריית העברות</string>
+
+    <string name="file_pdf">file.pdf</string>
+    <string name="_1_2_mb">1.2 MB</string>
+    <string name="_12_34">12:34</string>
+
+    <string name="file_pdf_out">file.pdf</string>
+    <string name="_1_2_mb_out">1.2 MB</string>
+    <string name="_12_34_out">12:34</string>
+
+    <string name="example_message">שלום</string>
+
+    <string name="example_message_in">היי</string>
+    <string name="_12_34_in">12:34</string>
+
+    <string name="example_message_out">שלום</string>
+    <string name="_12_34_text_out">12:34</string>
+
+    <string name="file_jpg_shared">file.jpg</string>
+    <string name="_120_kb">120 KB</string>
+    <string name="x">X</string>
+
+
+</resources>
