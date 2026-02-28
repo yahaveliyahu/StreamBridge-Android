@@ -52,27 +52,26 @@ class FileBrowserActivity : AppCompatActivity() {
     private lateinit var adapter: ChatBubblesAdapter
     private lateinit var layoutManager: LinearLayoutManager
     private var latestTmpUri: Uri? = null
-    private var latestTmpFile: File? = null // כדי שנוכל לוודא שהצילום באמת נשמר ולא יצא קובץ ריק
+    private var latestTmpFile: File? = null // So we can make sure the photo was actually saved and not an empty file
 
     companion object { private const val HISTORY_TTL_DAYS = 30 }
 
-    private fun historyCutoffMillis(): Long =
-        System.currentTimeMillis() - HISTORY_TTL_DAYS * 24L * 60L * 60L * 1000L
+    private fun historyCutoffMillis(): Long = System.currentTimeMillis() - HISTORY_TTL_DAYS * 24L * 60L * 60L * 1000L
 
 
     private val historyPrefs by lazy { getSharedPreferences("chat_history", MODE_PRIVATE) }
 
-    // ✅ המקלט שמאזין להודעות מהמחשב
+    // The receiver that listens for messages from the computer
     private val chatMessageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val jsonStr = intent?.getStringExtra("message") ?: return
             try {
                 val json = JSONObject(jsonStr)
-                // אם זו הודעה שהתקבלה מהמחשב
+                // If this is a message received from the computer
                 if (json.has("type")) {
                     when (json.getString("type")) {
                         "HANDSHAKE" -> {
-                            // ✅ פתרון לבעיה 6: קבלת שם המחשב
+                            // Getting the computer name
                             val pcName = json.optString("name", "PC")
                             statusText.text = getString(R.string.connected_to, pcName)
                         }
@@ -80,7 +79,7 @@ class FileBrowserActivity : AppCompatActivity() {
 
 //                    val type = json.getString("type")
 //                    if (type == "FILE_RECEIVED") {
-                        // קובץ שהועלה מהמחשב לטלפון
+                        // File uploaded from computer to phone
                             val fileName = json.getString("name")
                             val path = json.getString("path")
                             val f = File(path)
@@ -103,12 +102,12 @@ class FileBrowserActivity : AppCompatActivity() {
 //                            localPath = path,
 //                            sizeBytes = f.length(),
 //                            mimeType = "application/octet-stream",
-//                            isOutgoing = false // זה נכנס!
+//                            isOutgoing = false
 //                        ))
 //                    } else {
-//                        // הודעת טקסט רגילה מהמחשב
+//                        // A regular text message from your computer
 //                        val text = json.optString("text")
-//                        addMessage(ChatItem.Text(text = text, isOutgoing = false)) // false = נכנס (אפור)
+//                        addMessage(ChatItem.Text(text = text, isOutgoing = false))
 //                    }
 //                }
 //            } catch (e: Exception) {
@@ -117,10 +116,10 @@ class FileBrowserActivity : AppCompatActivity() {
 //        }
 //    }
 
-    // ✅ הרשאת אנשי קשר (מהקוד החדש)
+    // Contact permission
     private val requestContactsPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (!granted) Toast.makeText(this, "צריך הרשאת אנשי קשר", Toast.LENGTH_SHORT).show()
+            if (!granted) Toast.makeText(this, "Need contacts permission", Toast.LENGTH_SHORT).show()
             else pickContactLauncher.launch(null)
         }
 
@@ -146,29 +145,28 @@ class FileBrowserActivity : AppCompatActivity() {
     private val pickContactLauncher = registerForActivityResult(ActivityResultContracts.PickContact())
     { uri: Uri? -> uri?.let { exportContactAsVcf(it) }}
 
-    // ✅ המצלמה החדשה - משתמשת במצלמה המובנית של המכשיר
     private val takePhotoLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (!success || latestTmpUri == null) return@registerForActivityResult
 
-            // ✅ הגנה: לפעמים success=true אבל הקובץ ריק/לא נשמר
+            // Protection: Sometimes success=true but the file is empty/not saved
             val f = latestTmpFile
             if (f == null || !f.exists() || f.length() <= 0L) {
-                Toast.makeText(this, "הצילום לא נשמר / הקובץ ריק", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "The photo was not saved / the file is empty", Toast.LENGTH_SHORT).show()
                 return@registerForActivityResult
             }
 
-            // ✅ מטפל בדיוק כמו גלריה
+            // Handles just like a gallery
             handlePickedUri(latestTmpUri!!)
         }
 
 
-    // ✅ פיצ'ר חדש: מצלמה (Custom Activity)
+
 //    private val cameraLauncher =
 //        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
 //            val filePath = result.data?.getStringExtra("captured_path")
 //            if (!filePath.isNullOrBlank()) {
 //                val f = File(filePath)
-//                // הופך את הקובץ מהמצלמה ל-ChatItem
+//                // Converts the file from the camera to a ChatItem
 //                val item = ChatItem.FileItem(
 //                    name = f.name,
 //                    localPath = f.absolutePath,
@@ -191,7 +189,7 @@ class FileBrowserActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         chatRecycler = findViewById(R.id.chatRecycler)
 
-        // ✅ Back תמיד חוזר ל-MainActivity (activity_main.xml)
+        // Always returns to activity_main.xml
         backButton.setOnClickListener {
             val i = Intent(this, MainActivity::class.java)
             i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -199,14 +197,14 @@ class FileBrowserActivity : AppCompatActivity() {
             finish()
         }
 
-        // ✅ סטטוס מחובר עם שם מחשב (מה-Intent או SharedPreferences)
+        // Connected status with computer name (from Intent or SharedPreferences)
         val pcName = intent.getStringExtra("pc_name")
             ?: getSharedPreferences("conn", MODE_PRIVATE).getString("pc_name", "DESKTOP-XXXXX")
             ?: "DESKTOP-XXXXX"
 
         statusText.text = getString(R.string.status_connected, pcName)
 
-        // ✅ RecyclerView (צ'אט) + גלילה לתחתית
+        // RecyclerView (chat) + scroll to bottom
         layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         adapter = ChatBubblesAdapter(messages, this)
         chatRecycler.layoutManager = layoutManager
@@ -217,11 +215,10 @@ class FileBrowserActivity : AppCompatActivity() {
 
         loadHistory()
 
-        // ✅ פיצ'ר חדש: טיפול בשיתוף חיצוני (אם נכנסנו לאפליקציה דרך Share)
+        // Handling external sharing (if we entered the app via Share)
         handleIncomingShare(intent)
     }
 
-    // ✅ הרשמה לקבלת הודעות
     override fun onResume() {
         super.onResume()
         LocalBroadcastManager.getInstance(this).registerReceiver(
@@ -235,7 +232,7 @@ class FileBrowserActivity : AppCompatActivity() {
         saveHistory()
     }
 
-    // ✅ פיצ'ר חדש: תמיכה ב-SingleTop כדי לקבל שיתופים גם כשהאפליקציה פתוחה
+    // SingleTop support to receive shares even when the app is open
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIncomingShare(intent)
@@ -244,7 +241,7 @@ class FileBrowserActivity : AppCompatActivity() {
     private fun sendMessage() {
         val text = messageEditText.text?.toString()?.trim().orEmpty()
         if (text.isEmpty()) {
-            Toast.makeText(this, "כתוב הודעה קודם 🙂", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Write a message first 🙂", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -262,9 +259,7 @@ class FileBrowserActivity : AppCompatActivity() {
     }
 
 //        messageEditText.setText("")
-//        // 1. הוספה למסך שלי (כחול)
 //        messages.add(ChatItem.Text(text = text, isOutgoing = true))
-//        // 2. ✅ שליחה למחשב (JSON)
 //        val json = JSONObject().apply {
 //            put("text", text)
 //            put("type", "TEXT")
@@ -278,46 +273,46 @@ class FileBrowserActivity : AppCompatActivity() {
         val itemDate = Date(item.timestamp)
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-        // ✅ פתרון לבעיה 8: הוספת ימים
+        // Adding days
         if (lastMsg == null || (lastMsg !is ChatItem.DateHeader && dateFormat.format(Date(lastMsg.timestamp)) != dateFormat.format(itemDate))) {
             val headerText = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(itemDate)
             messages.add(ChatItem.DateHeader(headerText, item.timestamp))
             adapter.notifyItemInserted(messages.size - 1)
         }
-        // 1. הוספה לזיכרון
+        // Add to memory
         messages.add(item)
-        // 2. עדכון התצוגה (השורה ששאלת עליה)
+        // Display update
         adapter.notifyItemInserted(messages.size - 1)
-        // 3. גלילה למטה (השורה ששאלת עליה)
+        // Scroll down
         chatRecycler.scrollToPosition(messages.size - 1)
     }
 
     private fun handlePickedUri(uri: Uri) {
         try {
-            // 1) שם קובץ בטוח (כולל מקרים שאין DISPLAY_NAME)
+            // Safe filename (including cases where there is no DISPLAY_NAME)
             var fileName = getFileName(uri) ?: "file_${System.currentTimeMillis()}"
 //            val fileSize = destFile.length()
-            // 2) MIME בטוח (אודיו/תמונה/כל דבר)
+            // Safe MIME (audio/image/anything)
             val mime = contentResolver.getType(uri) ?: "application/octet-stream"
 
             fileName = ensureExtension(fileName, mime)
 
-            // אם לשם הקובץ אין סיומת, נוסיף אותה לפי ה-MimeType
+            // If the file name does not have an extension, we will add it according to the MimeType
             if (!fileName.contains(".")) {
                 val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "bin"
                 fileName = "$fileName.$ext"
             }
 
-            // 3) תיקיית shared מקומית (גישה תמידית גם לאודיו חיצוני)
-            // ✅ שומר עותק מקומי כדי שתמיד יהיה גישה + thumbnail לתמונות
+            // Local shared folder (permanent access to external audio as well)
+            // Saves a local copy so you always have access + thumbnail of images
             val sharedDir = File(filesDir, "shared")
             if (!sharedDir.exists()) sharedDir.mkdirs()
 
-            // אם קיים כבר באותו שם - אפשר למנוע דריסה עם שם ייחודי
+            // If there is already an existing one with the same name - you can prevent overwriting with a unique name
             val destFile = uniqueFileInDir(sharedDir, fileName)
             val finalName = destFile.name
 
-            // 4) העתקה בטוחה מה-URI לקובץ מקומי
+            // Safely copy from URI to local file
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(destFile).use { output ->
                     input.copyTo(output)
@@ -327,10 +322,10 @@ class FileBrowserActivity : AppCompatActivity() {
                 return
             }
 
-            // 5) גודל אמין אחרי ההעתקה (ולא לסמוך על size מה-URI)
+            // Reliable size after copying (and not relying on size from the URI)
             val fileSize = destFile.length()
 
-            // 6) הוספה לצ’אט בטלפון (בועה יוצאת)
+            // Add to phone chat (outgoing bubble)
             addMessage(
                 ChatItem.FileItem(
                     name = finalName,
@@ -342,7 +337,7 @@ class FileBrowserActivity : AppCompatActivity() {
                 )
             )
 
-            // 7) שליחת פקודה ל-PC להוריד מהטלפון דרך HTTP
+            // Sending a command to the PC to download from the phone via HTTP
             val json = JSONObject().apply {
                 put("type", "FILE_TRANSFER")
                 put("fileName", finalName)
@@ -355,28 +350,24 @@ class FileBrowserActivity : AppCompatActivity() {
             }
             ServerManager.sendToPC(json.toString())
 
-            Toast.makeText(this, "נשלח: $fileName", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Sent: $fileName", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-//            Toast.makeText(this, "נבחר: $fileName", Toast.LENGTH_SHORT).show()
-
-//            // ✅ 3. שליחת פקודה למחשב להוריד את הקובץ
+//            Toast.makeText(this, "selected: $fileName", Toast.LENGTH_SHORT).show()
 //            val json = JSONObject().apply {
-//                put("type", "FILE_TRANSFER") // סוג הודעה מיוחד
+//                put("type", "FILE_TRANSFER")
 //                put("fileName", fileName)
 //                put("fileSize", fileSize)
 //                put("mimeType", mime)
-//                // הנתיב להורדה בשרת ה-HTTP של הטלפון
 //                put("downloadPath", "/files/shared/$fileName")
 //                put("timestamp", System.currentTimeMillis())
 //            }
 //            ServerManager.sendToPC(json.toString())
 
-            // שליחה למחשב
 //            ServerManager.sendFileToPC(destFile, mime)
 //
 //            Toast.makeText(this, "Sent file request to PC", Toast.LENGTH_SHORT).show()
@@ -452,7 +443,7 @@ class FileBrowserActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    //  טיפול בשיתוף נכנס
+    //
     private fun handleIncomingShare(intent: Intent) {
         val action = intent.action ?: return
         val type = intent.type ?: return
@@ -476,40 +467,40 @@ class FileBrowserActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ לוגיקה חדשה ומתוקנת: ייצוא איש קשר
+    // Export a contact
     private fun exportContactAsVcf(contactUri: Uri) {
         try {
             val cursor = contentResolver.query(contactUri, null, null, null, null) ?: return
             cursor.use {
                 if (!it.moveToFirst()) return
 
-                // 1. תיקון: משיגים את ה-LOOKUP_KEY (זה מה שאנדרואיד צריך בשביל VCF)
+                // Get the LOOKUP_KEY (this is what Android needs for VCF)
                 val lookupKeyIndex = it.getColumnIndex(ContactsContract.Contacts.LOOKUP_KEY)
                 val nameIndex = it.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
 
-                if (lookupKeyIndex == -1) return // הגנה
+                if (lookupKeyIndex == -1) return // protection
 
                 val lookupKey = it.getString(lookupKeyIndex)
                 val displayName = if (nameIndex != -1) it.getString(nameIndex) else "contact"
 
-                // 2. יצירת ה-URI הנכון להורדת ה-VCard
+                // Creating the correct URI to download the VCard
                 val vcardUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_VCARD_URI, lookupKey)
 
-                // 3. הכנת הקובץ המקומי
+                // Preparing the local file
                 val sharedDir = File(filesDir, "shared")
                 if (!sharedDir.exists()) sharedDir.mkdirs()
 
-                // משתמש בשם של איש הקשר כשם הקובץ (למשל: "Yosi Cohen.vcf")
-                val safeName = displayName.replace("[^a-zA-Z0-9 א-ת]".toRegex(), "_") // מנקה תווים בעייתיים
+                // Uses the contact's name as the file name (e.g.: "Yosi Cohen.vcf")
+                val safeName = displayName.replace("[^a-zA-Z0-9 א-ת]".toRegex(), "_") // Cleans problematic characters
                 val fileName = "$safeName.vcf"
                 val destFile = File(sharedDir, fileName)
 
-                // 4. העתקת התוכן לקובץ
+                // Copying the content to a file
                 contentResolver.openInputStream(vcardUri)?.use { input ->
                     FileOutputStream(destFile).use { output -> input.copyTo(output) }
                 }
 
-                // 5. הוספה לצ'אט
+                // Add to chat
                 addMessage(
                     ChatItem.FileItem(
                         name = fileName,
@@ -526,86 +517,31 @@ class FileBrowserActivity : AppCompatActivity() {
             Toast.makeText(this, "Contact export failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
-    // ✅ לוגיקה חדשה: ייצוא איש קשר
-//    private fun exportContactAsVcf(contactUri: Uri) {
-//        try {
-//            val cursor = contentResolver.query(contactUri, null, null, null, null) ?: return
-//            cursor.use {
-//                if (!it.moveToFirst()) return
-//                val idIndex = it.getColumnIndex(ContactsContract.Contacts._ID)
-//                if (idIndex == -1) return // הגנה
-//                val contactId = it.getString(idIndex)
-//                val vcardUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_VCARD_URI, contactId)
-//
-//                val sharedDir = File(filesDir, "shared")
-//                if (!sharedDir.exists()) sharedDir.mkdirs()
-//
-//                val fileName = "contact_${contactId}.vcf"
-//                val destFile = File(sharedDir, fileName)
-//
-//                contentResolver.openInputStream(vcardUri)?.use { input ->
-//                    FileOutputStream(destFile).use { output -> input.copyTo(output) }
-//                }
-//
-//                addMessage(
-//                    ChatItem.FileItem(
-//                        name = fileName,
-//                        localPath = destFile.absolutePath,
-//                        sizeBytes = destFile.length(),
-//                        mimeType = "text/x-vcard",
-//                        isOutgoing = true
-//                    )
-//                )
-//            }
-//        } catch (e: Exception) {
-//            Toast.makeText(this, "Contact export failed: ${e.message}", Toast.LENGTH_SHORT).show()
-//        }
-//    }
 
     private fun openNotesAppHint() {
         try {
             val samsungNotesPackage = "com.samsung.android.app.notes"
 
-            // 1. נסה לפתוח ספציפית את Samsung Notes
+            // Try opening Samsung Notes specifically
             val launchIntent = packageManager.getLaunchIntentForPackage(samsungNotesPackage)
             if (launchIntent != null) {
                 startActivity(launchIntent)
             } else {
-                // 2. אם לא מותקן (או שהמניפסט לא מעודכן), נסה לפתוח כל אפליקציית פתקים
-                // (עובד באנדרואיד 14 ומעלה, או באנדרואיד ישן עם Intent גנרי)
+                // If not installed (or the manifest is out of date), try opening any notes app
+                // (Works on Android 14 and above, or on older Android with generic Intent)
                 try {
                     val intent = Intent(Intent.ACTION_MAIN)
                     intent.addCategory("android.intent.category.APP_NOTES")
                     startActivity(intent)
                 } catch (_: Exception) {
-                    // 3. אם הכל נכשל
-                    Toast.makeText(this, "לא נמצאה אפליקציית פתקים. פתח ידנית ושתף.", Toast.LENGTH_LONG).show()
+                    // If all else fails
+                    Toast.makeText(this, "No notes app found. Open manually and share", Toast.LENGTH_LONG).show()
                 }
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "שגיאה בפתיחת האפליקציה: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Error opening the app: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
-
-
-
-
-
-    // ✅ לוגיקה חדשה: Notes Hint
-//    private fun openNotesAppHint() {
-//        try {
-//            if (Build.VERSION.SDK_INT >= 34) {
-//                val intent = Intent(Intent.ACTION_MAIN).addCategory("android.intent.category.APP_NOTES")
-//                startActivity(intent)
-//            } else {
-//                val intent = packageManager.getLaunchIntentForPackage("com.samsung.android.app.notes")
-//                if (intent != null) startActivity(intent)
-//                else Toast.makeText(this, "פתח Notes ואז Share ל-StreamBridge", Toast.LENGTH_LONG).show()
-//            }
-//        } catch (_: Exception) {
-//            Toast.makeText(this, "לא הצלחתי לפתוח Notes. פתח ידנית ואז Share", Toast.LENGTH_LONG).show()
-//        }
-//    }
 
     private fun getFileName(uri: Uri): String? {
         contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -618,7 +554,7 @@ class FileBrowserActivity : AppCompatActivity() {
     }
 
     private fun ensureExtension(name: String, mime: String): String {
-        // אם כבר יש נקודה בסוף – נשאיר
+        // If there is already a period at the end – we will leave it
         if (name.contains('.') && !name.endsWith(".")) return name
 
         val ext = when (mime.lowercase()) {
@@ -697,7 +633,7 @@ class FileBrowserActivity : AppCompatActivity() {
 
         messages.forEach { msg ->
 //            if (msg is ChatItem.DateHeader) return@forEach
-            if (msg.timestamp < cutoff) return@forEach  // ✅ מוחק בפועל היסטוריה ישנה
+            if (msg.timestamp < cutoff) return@forEach  // Actually erases old history
 
             val obj = JSONObject()
             when (msg) {
@@ -734,13 +670,13 @@ class FileBrowserActivity : AppCompatActivity() {
         val cutoff = historyCutoffMillis()
         val jsonArray = JSONArray(jsonStr)
 
-        // נבנה מחדש רק את מה שב-30 ימים האחרונים
+        // We will only rebuild what was in the last 30 days
         val kept = JSONArray()
 
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.getJSONObject(i)
             val time = obj.optLong("time", 0L)
-            if (time < cutoff) continue  // ✅ דילוג על ישן
+            if (time < cutoff) continue  // Skipping old
             kept.put(obj)
 
             if (obj.getString("type") == "TEXT") {
@@ -755,7 +691,7 @@ class FileBrowserActivity : AppCompatActivity() {
                     time))
             }
         }
-        // ✅ ניקוי מיידי של ההיסטוריה הישנה מהדיסק
+        // Instantly clear old history from disk
         historyPrefs.edit { putString("history", kept.toString()) }
     }
 
@@ -774,21 +710,21 @@ class FileBrowserActivity : AppCompatActivity() {
 
     private fun launchCamera() {
         try {
-            // 1. צור קובץ זמני בתיקיית ה-Cache
+            // Create a temporary file in the Cache folder
             val tmpFile = File(cacheDir, "camera_photo_${System.currentTimeMillis()}.jpg")
             latestTmpFile = tmpFile
 
-            // 2. צור URI מאובטח באמצעות FileProvider
+            // Create a secure URI using FileProvider
             latestTmpUri = FileProvider.getUriForFile(
                 this,
-                "$packageName.provider", // חייב להתאים למה שכתבנו ב-Manifest
+                "$packageName.provider", // Must match what we wrote in the Manifest
                 tmpFile
             )
 
-            // 3. הפעל את המצלמה
+            // Turn on the camera
             takePhotoLauncher.launch(latestTmpUri)
         } catch (e: Exception) {
-            Toast.makeText(this, "שגיאה בפתיחת מצלמה: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Error opening camera: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }
@@ -895,16 +831,14 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
 //            val isImage = item.mimeType.startsWith("image/")
 //            if (isImage) {
-//                // Thumbnail אמיתי מהקובץ המקומי
 //                thumb.clearColorFilter()
 //                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
 //            } else {
-//                // אייקון קובץ
 //                thumb.setImageResource(R.drawable.ic_file)
 //            }
 //        }
 
-            // ✅ לחיצה פותחת קובץ (כמו החדש)
+            // Clicking opens a file (like the new one)
             itemView.setOnClickListener {
                 try {
                     val file = File(item.localPath)
@@ -941,7 +875,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 //sealed class ChatItem {
 //    data class Text(
 //        val text: String,
-//        val isOutgoing: Boolean // true = מימין, false = משמאל
+//        val isOutgoing: Boolean
 //    ) : ChatItem()
 //}
 //

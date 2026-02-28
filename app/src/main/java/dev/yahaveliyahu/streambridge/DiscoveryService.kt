@@ -14,7 +14,7 @@ class DiscoveryService(private val context: Context) {
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var pairingServer: ServerSocket? = null
     private var isRunning = false
-    private val TAG = "DiscoveryService"
+    private val tag = "DiscoveryService"
 
     // List of IPs trusted via QR Scan
     private val trustedIps = mutableSetOf<String>()
@@ -34,7 +34,7 @@ class DiscoveryService(private val context: Context) {
 
     fun addTrustedIp(ip: String) {
         trustedIps.add(ip)
-        Log.d(TAG, "Added trusted IP: $ip")
+        Log.d(tag, "Added trusted IP: $ip")
     }
 
     private fun registerNsdService(phoneIp: String, phonePort: Int) {
@@ -57,7 +57,7 @@ class DiscoveryService(private val context: Context) {
         try {
             nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
         } catch (e: Exception) {
-            Log.e(TAG, "NSD Registration failed", e)
+            Log.e(tag, "NSD Registration failed", e)
         }
     }
 
@@ -72,11 +72,11 @@ class DiscoveryService(private val context: Context) {
                         val client = pairingServer?.accept()
                         if (client != null) handlePairingRequest(client)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Socket accept error", e)
+                        Log.e(tag, "Socket accept error", e)
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Pairing server error", e)
+                Log.e(tag, "Pairing server error", e)
             }
         }
     }
@@ -95,11 +95,11 @@ class DiscoveryService(private val context: Context) {
                 val rawIp = client.inetAddress.hostAddress
                 val pcIp = rawIp?.replace("/", "") ?: "Unknown"
 
-                Log.d(TAG, "Request from $pcName at $pcIp")
+                Log.d(tag, "Request from $pcName at $pcIp")
 
                 // CHECK TRUST: If scanned via QR, approve immediately!
                 if (trustedIps.contains(pcIp)) {
-                    Log.d(TAG, "IP $pcIp is trusted. Auto-approving.")
+                    Log.d(tag, "IP $pcIp is trusted. Auto-approving.")
                     sendResponse(output, true)
                     client.close()
                     // Notify UI just for info
@@ -113,15 +113,15 @@ class DiscoveryService(private val context: Context) {
                         try {
                             sendResponse(output, approved)
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error sending response", e)
+                            Log.e(tag, "Error sending response", e)
                         } finally {
-                            try { client.close() } catch (e: Exception) {}
+                            try { client.close() } catch (_: Exception) {}
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Handle pairing error", e)
-                try { client.close() } catch (e: Exception) {}
+                Log.e(tag, "Handle pairing error", e)
+                try { client.close() } catch (_: Exception) {}
             }
         }
     }
@@ -137,8 +137,8 @@ class DiscoveryService(private val context: Context) {
 
     fun stopDiscovery() {
         isRunning = false
-        try { pairingServer?.close() } catch (e: Exception) {}
-        try { nsdManager?.unregisterService(registrationListener) } catch (e: Exception) {}
+        try { pairingServer?.close() } catch (_: Exception) {}
+        try { nsdManager?.unregisterService(registrationListener) } catch (_: Exception) {}
     }
 }
 
@@ -162,7 +162,7 @@ class DiscoveryService(private val context: Context) {
 //    private var registrationListener: NsdManager.RegistrationListener? = null
 //    private var pairingServer: ServerSocket? = null
 //    private var isRunning = false
-//    private val TAG = "DiscoveryService"
+//    private val tag = "DiscoveryService"
 //
 //    var onPairingRequest: ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
 //
@@ -192,19 +192,19 @@ class DiscoveryService(private val context: Context) {
 //
 //        registrationListener = object : NsdManager.RegistrationListener {
 //            override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-//                Log.d(TAG, "Service registered: ${serviceInfo.serviceName}")
+//                Log.d(tag, "Service registered: ${serviceInfo.serviceName}")
 //            }
 //
 //            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-//                Log.e(TAG, "Service registration failed: $errorCode")
+//                Log.e(tag, "Service registration failed: $errorCode")
 //            }
 //
 //            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-//                Log.d(TAG, "Service unregistered")
+//                Log.d(tag, "Service unregistered")
 //            }
 //
 //            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-//                Log.e(TAG, "Service unregistration failed: $errorCode")
+//                Log.e(tag, "Service unregistration failed: $errorCode")
 //            }
 //        }
 //
@@ -218,7 +218,7 @@ class DiscoveryService(private val context: Context) {
 //        thread {
 //            try {
 //                pairingServer = ServerSocket(PAIRING_PORT)
-//                Log.d(TAG, "Pairing server started on port $PAIRING_PORT")
+//                Log.d(tag, "Pairing server started on port $PAIRING_PORT")
 //
 //                while (isRunning) {
 //                    try {
@@ -228,12 +228,12 @@ class DiscoveryService(private val context: Context) {
 //                        }
 //                    } catch (e: Exception) {
 //                        if (isRunning) {
-//                            Log.e(TAG, "Error accepting client", e)
+//                            Log.e(tag, "Error accepting client", e)
 //                        }
 //                    }
 //                }
 //            } catch (e: Exception) {
-//                Log.e(TAG, "Error starting pairing server", e)
+//                Log.e(tag, "Error starting pairing server", e)
 //            }
 //        }
 //    }
@@ -249,7 +249,7 @@ class DiscoveryService(private val context: Context) {
 //                val pcName = json.getString("name")
 //                val pcIp = client.inetAddress.hostAddress ?: "Unknown"
 //
-//                Log.d(TAG, "Pairing request from $pcName ($pcIp)")
+//                Log.d(tag, "Pairing request from $pcName ($pcIp)")
 //
 //                // Ask user for approval
 //                onPairingRequest?.invoke(pcName, pcIp) { approved ->
@@ -263,13 +263,13 @@ class DiscoveryService(private val context: Context) {
 //                        output.write(response.toString() + "\n")
 //                        output.flush()
 //                    } catch (e: Exception) {
-//                        Log.e(TAG, "Error sending response", e)
+//                        Log.e(tag, "Error sending response", e)
 //                    } finally {
 //                        client.close()
 //                    }
 //                }
 //            } catch (e: Exception) {
-//                Log.e(TAG, "Error handling pairing request", e)
+//                Log.e(tag, "Error handling pairing request", e)
 //                client.close()
 //            }
 //        }
@@ -281,13 +281,13 @@ class DiscoveryService(private val context: Context) {
 //        try {
 //            pairingServer?.close()
 //        } catch (e: Exception) {
-//            Log.e(TAG, "Error closing pairing server", e)
+//            Log.e(tag, "Error closing pairing server", e)
 //        }
 //
 //        try {
 //            nsdManager?.unregisterService(registrationListener)
 //        } catch (e: Exception) {
-//            Log.e(TAG, "Error unregistering NSD service", e)
+//            Log.e(tag, "Error unregistering NSD service", e)
 //        }
 //    }
 //}

@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraButton: Button
     private lateinit var filesButton: Button
 
-    // מנהל השרת
+    // Server Administrator
     private lateinit var serverManager: ServerManager
     private lateinit var discoveryService: DiscoveryService
 
@@ -69,12 +69,12 @@ class MainActivity : AppCompatActivity() {
         cameraButton = findViewById(R.id.cameraButton)
         filesButton = findViewById(R.id.filesButton)
 
-        // אתחול מנהלים
+        // Administrators boot
         serverManager = ServerManager(this)
         discoveryService = DiscoveryService(this)
         nsdManager = getSystemService(NSD_SERVICE) as NsdManager
 
-        // בקשת הרשאות והצגת IP
+        // Request permissions and display IP
         // Setup discovery service callbacks
         setupDiscoveryCallbacks()
 
@@ -115,9 +115,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startServer() {
-        // 1. הפעלת השרת הראשי
+        // Starting the main server
         serverManager.startServer()
-        // 2. השגת ה-IP
+        // Obtaining the IP
 //        val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
 //        val ipAddress = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
 
@@ -126,20 +126,20 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 3. הפעלת מנגנון האישור (כדי שהמחשב יוכל להתחבר בפורט 8082)
+        // Enabling the authorization mechanism (so that the computer can connect on port 8082)
         discoveryService.startDiscovery(ipAddress, 8080)
 
-        registerService() // משדרים בפורט 8080
+        registerService() // Broadcasting on port 8080
         displayIPAddress()
         updateUI()
         Toast.makeText(this, "Server started", Toast.LENGTH_SHORT).show()
     }
 
     private fun stopServer() {
-        // עצירת השרת
+        // Stopping the server
         serverManager.stopServer()
-        discoveryService.stopDiscovery()    // עוצר את האזנה לחיבורים
-        // הפסקת השידור
+        discoveryService.stopDiscovery()    // Stops listening for connections
+        // Stopping the broadcast
         unregisterService()
 
         updateUI()
@@ -153,11 +153,11 @@ class MainActivity : AppCompatActivity() {
                     .setTitle("Connection Request")
                     .setMessage("$pcName ($pcIp) wants to connect to your phone.\n\nAllow connection?")
                     .setPositiveButton("Connect") { _, _ ->
-                        callback(true)  // מאשר למחשב
+                        callback(true)  // Gives permission to the computer
                         Toast.makeText(this, "Connected to $pcName", Toast.LENGTH_SHORT).show()
                     }
                     .setNegativeButton("Deny") { _, _ ->
-                        callback(false)     // דוחה את המחשב
+                        callback(false)     // Rejects the computer
                     }
                     .setCancelable(false)
                     .show()
@@ -165,21 +165,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================================
-    // ✅ הלוגיקה החדשה של Auto Discovery
-    // ==========================================
     private fun registerService() {
-        // מכינים את המידע לשידור
+        // Preparing the information for transmission
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = SERVICE_NAME
             serviceType = SERVICE_TYPE
             port = SERVER_PORT
         }
 
-        // המאזין שמדווח אם הצלחנו להירשם ברשת
+        // The listener that reports whether we were able to register online
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-            // הצלחה! הטלפון משדר עכשיו
+            // The phone is now transmitting
                 Log.d("StreamBridge", "Service Registered: ${serviceInfo.serviceName}")
             }
 
@@ -190,7 +187,7 @@ class MainActivity : AppCompatActivity() {
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
         }
 
-        // ביצוע הרישום בפועל
+        // Performing the actual registration
         nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
     }
 
@@ -275,20 +272,20 @@ class MainActivity : AppCompatActivity() {
 //        }
 //    }
 
-    // פונקציה חדשה ששולחת את ה-IP של הטלפון למחשב
+    // A function that sends the phone's IP to the computer
     private fun notifyPcToConnect(pcIp: String) {
         Thread {
             try {
-                // משיג את ה-IP של הטלפון
+                // Gets the phone's IP
 //                val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
 //                val myIp = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
                 val myIp = getLocalIpAddress() ?: throw Exception("Could not get phone IP")
 
-                // מתחבר למחשב בפורט 8083 ושולח לו את ה-IP שלנו
+                // Connects to the computer on port 8083 and sends it our IP
                 val socket = java.net.Socket(pcIp, 8083)
                 val output = socket.getOutputStream().bufferedWriter()
 
-                output.write(myIp + "\n") // שולח את ה-IP
+                output.write(myIp + "\n") // Sending the IP
                 output.flush()
                 socket.close()
 
@@ -326,7 +323,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        //stopServer() // זה סוגר גם את השרת וגם את השידור (NSD)     הוסר כדי למנוע ניתוקים במעבר אפליקציות
+        //stopServer() // This shuts down both the server and the broadcast (NSD). Removed to prevent disconnects when switching applications
+
 //        serverManager.stopServer()
 //        discoveryService.stopDiscovery()
     }
