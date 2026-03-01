@@ -21,6 +21,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import java.io.File
 import java.io.FileOutputStream
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
@@ -37,6 +38,11 @@ import androidx.core.content.FileProvider
 import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.*
+
+import android.os.Environment
+import android.graphics.BitmapFactory
+import android.util.Log
+import android.media.MediaScannerConnection
 
 
 class FileBrowserActivity : AppCompatActivity() {
@@ -816,6 +822,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         private val metaTv: TextView = view.findViewById(R.id.fileMeta)
         private val thumb: ImageView = view.findViewById(R.id.thumbnail)
         private val timeTv: TextView? = view.findViewById(R.id.messageTime)
+        private val btnSaveAs: Button? = view.findViewById(R.id.btnSaveAs)
 
 
         fun bind(item: ChatItem.FileItem, ctx: Context) {
@@ -824,10 +831,25 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             metaTv.text = formatSize(item.sizeBytes)
 
             if (item.mimeType.startsWith("image/")) {
-                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
+                loadImage(item.localPath)
+//                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
             } else {
                 thumb.setImageResource(R.drawable.ic_file)
+                thumb.clearColorFilter()
             }
+
+            // Save button click handler
+            btnSaveAs?.setOnClickListener {
+                saveToDownloads(item, ctx)
+            }
+
+            // Click thumbnail or message to open file
+            val openClickListener = View.OnClickListener {
+                openFile(item, ctx)
+            }
+            thumb.setOnClickListener(openClickListener)
+            itemView.setOnClickListener(openClickListener)
+        }
 
 //            val isImage = item.mimeType.startsWith("image/")
 //            if (isImage) {
@@ -838,19 +860,114 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 //            }
 //        }
 
-            // Clicking opens a file (like the new one)
-            itemView.setOnClickListener {
-                try {
-                    val file = File(item.localPath)
-                    val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, item.mimeType)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        private fun loadImage(filePath: String) {
+            val file = File(filePath)
+            Log.d("FileVH", "Loading image: $filePath")
+            Log.d("FileVH", "Loading: $filePath, exists: ${file.exists()}, size: ${file.length()}")
+
+            try {
+                if (file.exists() && file.length() > 0) {
+                    // Method 1: Try BitmapFactory
+                    val bitmap = BitmapFactory.decodeFile(filePath)
+                    if (bitmap != null) {
+                        thumb.setImageBitmap(bitmap)
+                        thumb.clearColorFilter()
+                        Log.d("FileVH", "Image loaded with BitmapFactory")
+                        return
                     }
-                    ctx.startActivity(intent)
-                } catch (_: Exception) {
-                    Toast.makeText(ctx, "No app found to open file", Toast.LENGTH_SHORT).show()
                 }
+                // Method 2: Try with delay (file might still be writing)
+                thumb.postDelayed({
+                    try {
+                        if (file.exists() && file.length() > 0) {
+                            val bitmap = BitmapFactory.decodeFile(filePath)
+                            if (bitmap != null) {
+                                thumb.setImageBitmap(bitmap)
+                                thumb.clearColorFilter()
+                                Log.d("FileVH", "Image loaded on retry")
+                                return@postDelayed
+                            }
+                        }
+                        // Method 3: Try URI method
+                        thumb.setImageURI(Uri.fromFile(file))
+                        thumb.clearColorFilter()
+                        Log.d("FileVH", "Image loaded with URI")
+                    } catch (e: Exception) {
+                        Log.e("FileVH", "❌ Failed to load image: ${e.message}")
+                        showPlaceholder()
+                    }
+                }, 300)
+            } catch (e: Exception) {
+                Log.e("FileVH", "Error loading image: ${e.message}")
+                showPlaceholder()
+            }
+        }
+
+        private fun showPlaceholder() {
+            thumb.setImageResource(R.drawable.ic_launcher_background)
+            thumb.setColorFilter(android.graphics.Color.LTGRAY)
+        }
+
+        private fun saveToDownloads(item: ChatItem.FileItem, ctx: Context) {
+            try {
+                val sourceFile = File(item.localPath)
+                // Check source exists
+                if (!sourceFile.exists()) {
+                    Toast.makeText(ctx, "File not found", Toast.LENGTH_SHORT).show()
+                    Log.e("FileVH", "Source file doesn't exist: ${item.localPath}")
+                    return
+                }
+                // Get Downloads directory
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                // Create StreamBridge folder
+                val streamBridgeDir = File(downloadsDir, "StreamBridge")
+                if (!streamBridgeDir.exists()) {
+                    val created = streamBridgeDir.mkdirs()
+                    Log.d("FileVH", "Created StreamBridge dir: $created")
+                }
+                // Generate unique filename with timestamp
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val originalName = item.name
+
+                val extension = if (originalName.contains(".")) originalName.substringAfterLast(".") else ""
+                val nameWithoutExt = if (originalName.contains(".")) originalName.substringBeforeLast(".") else originalName
+                val destFileName = if (extension.isNotEmpty()) "${nameWithoutExt}_$timestamp.$extension" else "${originalName}_$timestamp"
+                val destFile = File(streamBridgeDir, destFileName)
+                // Copy file
+                sourceFile.copyTo(destFile, overwrite = true)
+                // Show success message
+                Toast.makeText(ctx, "✅ Saved to Downloads/StreamBridge/\n$destFileName", Toast.LENGTH_LONG).show()
+                Log.d("FileVH", "Saved: ${destFile.absolutePath}")
+                // Make file visible in file manager
+                MediaScannerConnection.scanFile( ctx, arrayOf(destFile.absolutePath), null ) { path, uri ->
+                    Log.d("FileVH", "File scanned: $path")
+                }
+            } catch (e: Exception) {
+                Log.e("FileVH", "❌ Save error: ${e.message}", e)
+                Toast.makeText(ctx, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+        private fun openFile(item: ChatItem.FileItem, ctx: Context) {
+            try {
+                val file = File(item.localPath)
+                if (!file.exists()) {
+                    Toast.makeText(ctx, "File not found", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, item.mimeType)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                ctx.startActivity(intent)
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(ctx, "No app found to open file", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "Cannot open: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("FileVH", "Open failed: ${e.message}", e)
             }
         }
 

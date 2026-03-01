@@ -51,21 +51,37 @@
                 android:text="@string/_1_2_mb"
                 android:textColor="#666666"
                 android:textSize="13sp"
-                android:layout_marginTop="6dp"/>
+                android:layout_marginTop="4dp"/>
+
+            <Button
+                android:id="@+id/btnSaveAs"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="Save As"
+                android:textSize="10sp"
+                android:textColor="#333333"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/btn_save_background"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:layout_gravity="center_horizontal"
+                />
+
+            </LinearLayout>
 
         </LinearLayout>
 
-    </LinearLayout>
-
-            <androidx.appcompat.widget.AppCompatTextView
-                android:id="@+id/messageTime"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="start"
-                android:layout_marginTop="2dp"
-                android:layout_marginStart="4dp"
-                android:text="@string/_12_34"
-                android:textSize="11sp"
-                android:textColor="#999999" />
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/messageTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:layout_marginTop="2dp"
+            android:layout_marginStart="4dp"
+            android:text="@string/_12_34"
+            android:textSize="11sp"
+            android:textColor="#999999" />
 
 </LinearLayout>
