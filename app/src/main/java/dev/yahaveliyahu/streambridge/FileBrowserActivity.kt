@@ -25,6 +25,7 @@ import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.os.Build
 import android.provider.ContactsContract
 import android.webkit.MimeTypeMap
@@ -43,6 +44,7 @@ import android.os.Environment
 import android.graphics.BitmapFactory
 import android.util.Log
 import android.media.MediaScannerConnection
+import androidx.appcompat.app.AlertDialog
 
 
 class FileBrowserActivity : AppCompatActivity() {
@@ -834,6 +836,8 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                 loadImage(item.localPath)
 //                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
             } else {
+                // Restore white tint for non-image files
+                thumb.imageTintList = ColorStateList.valueOf(android.graphics.Color.WHITE)
                 thumb.setImageResource(R.drawable.ic_file)
                 thumb.clearColorFilter()
             }
@@ -862,19 +866,23 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
 
         private fun loadImage(filePath: String) {
-            val file = File(filePath)
-            Log.d("FileVH", "Loading image: $filePath")
-            Log.d("FileVH", "Loading: $filePath, exists: ${file.exists()}, size: ${file.length()}")
-
             try {
+                val file = File(filePath)
+                Log.d("FileVH", "Loading image: $filePath")
+                Log.d("FileVH", "File exists: ${file.exists()}, size: ${file.length()}")
+                // Remove white tint before loading image
+                thumb.imageTintList = null
+
+                // Method 1: Try BitmapFactory
                 if (file.exists() && file.length() > 0) {
-                    // Method 1: Try BitmapFactory
                     val bitmap = BitmapFactory.decodeFile(filePath)
                     if (bitmap != null) {
                         thumb.setImageBitmap(bitmap)
                         thumb.clearColorFilter()
                         Log.d("FileVH", "Image loaded with BitmapFactory")
                         return
+                    } else {
+                        Log.w("FileVH", "BitmapFactory returned null")
                     }
                 }
                 // Method 2: Try with delay (file might still be writing)
@@ -894,7 +902,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                         thumb.clearColorFilter()
                         Log.d("FileVH", "Image loaded with URI")
                     } catch (e: Exception) {
-                        Log.e("FileVH", "❌ Failed to load image: ${e.message}")
+                        Log.e("FileVH", "All methods failed: ${e.message}")
                         showPlaceholder()
                     }
                 }, 300)
@@ -910,6 +918,47 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         }
 
         private fun saveToDownloads(item: ChatItem.FileItem, ctx: Context) {
+            // Show dialog to get custom filename
+            showSaveDialog(item, ctx)
+        }
+
+        // Show dialog for custom filename
+        private fun showSaveDialog(item: ChatItem.FileItem, ctx: Context) {
+            val dialogView = LayoutInflater.from(ctx).inflate(android.R.layout.select_dialog_item, null)
+            val editText = EditText(ctx).apply {
+                // Pre-fill with current filename (without extension)
+                val nameWithoutExt = if (item.name.contains(".")) {
+                    item.name.substringBeforeLast(".")
+                } else {
+                    item.name
+                }
+                setText(nameWithoutExt)
+                hint = "Enter filename"
+                setSingleLine()
+
+                // Select all text for easy editing
+                selectAll()
+            }
+
+            AlertDialog.Builder(ctx)
+                .setTitle("Save File As")
+                .setMessage("Enter a name for the file:")
+                .setView(editText)
+                .setPositiveButton("Save") { _, _ ->
+                    val customName = editText.text.toString().trim()
+                    if (customName.isNotEmpty()) {
+                        performSave(item, customName, ctx)
+                    } else {
+                        Toast.makeText(ctx, "Filename cannot be empty", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+
+        // ✅ NEW: Perform actual save with custom name
+        private fun performSave(item: ChatItem.FileItem, customName: String, ctx: Context) {
             try {
                 val sourceFile = File(item.localPath)
                 // Check source exists
@@ -918,37 +967,120 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                     Log.e("FileVH", "Source file doesn't exist: ${item.localPath}")
                     return
                 }
+
+                // Get the original extension
+                val originalExt = if (item.name.contains(".")) {
+                    item.name.substringAfterLast(".")
+                } else {
+                    getExtensionFromMimeType(item.mimeType)
+                }
+
+                // Check if user provided extension
+                val finalName = if (customName.contains(".")) {
+                    // User provided extension - use it
+                    customName
+                } else {
+                    // No extension - add it automatically
+                    "$customName.$originalExt"
+                }
+
                 // Get Downloads directory
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val downloadsDir =
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 // Create StreamBridge folder
                 val streamBridgeDir = File(downloadsDir, "StreamBridge")
                 if (!streamBridgeDir.exists()) {
                     val created = streamBridgeDir.mkdirs()
                     Log.d("FileVH", "Created StreamBridge dir: $created")
                 }
-                // Generate unique filename with timestamp
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val originalName = item.name
+                val destFile = File(streamBridgeDir, finalName)
 
-                val extension = if (originalName.contains(".")) originalName.substringAfterLast(".") else ""
-                val nameWithoutExt = if (originalName.contains(".")) originalName.substringBeforeLast(".") else originalName
-                val destFileName = if (extension.isNotEmpty()) "${nameWithoutExt}_$timestamp.$extension" else "${originalName}_$timestamp"
-                val destFile = File(streamBridgeDir, destFileName)
-                // Copy file
-                sourceFile.copyTo(destFile, overwrite = true)
-                // Show success message
-                Toast.makeText(ctx, "✅ Saved to Downloads/StreamBridge/\n$destFileName", Toast.LENGTH_LONG).show()
-                Log.d("FileVH", "Saved: ${destFile.absolutePath}")
-                // Make file visible in file manager
-                MediaScannerConnection.scanFile( ctx, arrayOf(destFile.absolutePath), null ) { path, uri ->
-                    Log.d("FileVH", "File scanned: $path")
+                // Check if file exists
+                if (destFile.exists()) {
+                    showOverwriteDialog(sourceFile, destFile, finalName, ctx)
+                } else {
+                    // Save directly
+                    sourceFile.copyTo(destFile, overwrite = false)
+                    showSaveSuccess(destFile, ctx)
                 }
+
             } catch (e: Exception) {
                 Log.e("FileVH", "❌ Save error: ${e.message}", e)
                 Toast.makeText(ctx, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+                // Generate unique filename with timestamp
+//                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+//                val originalName = item.name
+//                val extension = if (originalName.contains(".")) originalName.substringAfterLast(".") else ""
+//                val nameWithoutExt = if (originalName.contains(".")) originalName.substringBeforeLast(".") else originalName
+//                val destFileName = if (extension.isNotEmpty()) "${nameWithoutExt}_$timestamp.$extension" else "${originalName}_$timestamp"
+//                val destFile = File(streamBridgeDir, destFileName)
 
+                // Copy file
+//                sourceFile.copyTo(destFile, overwrite = true)
+//                // Show success message
+//                Toast.makeText(ctx, "Saved to Downloads/StreamBridge/\n$destFileName", Toast.LENGTH_LONG).show()
+//                Log.d("FileVH", "Saved: ${destFile.absolutePath}")
+//                // Make file visible in file manager
+//                MediaScannerConnection.scanFile( ctx, arrayOf(destFile.absolutePath), null ) { path, uri ->
+//                    Log.d("FileVH", "File scanned: $path")
+//                }
+//            } catch (e: Exception) {
+//                Log.e("FileVH", "❌ Save error: ${e.message}", e)
+//                Toast.makeText(ctx, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
+//            }
+//        }
+
+        // Ask user if they want to overwrite existing file
+        private fun showOverwriteDialog(sourceFile: File, destFile: File, filename: String, ctx: Context) {
+            AlertDialog.Builder(ctx)
+                .setTitle("File Already Exists")
+                .setMessage("$filename already exists. Do you want to overwrite it?")
+                .setPositiveButton("Overwrite") { _, _ ->
+                    try {
+                        sourceFile.copyTo(destFile, overwrite = true)
+                        showSaveSuccess(destFile, ctx)
+                    } catch (e: Exception) {
+                        Toast.makeText(ctx, "Failed to overwrite: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        // Show success message and scan file
+        private fun showSaveSuccess(destFile: File, ctx: Context) {
+            Toast.makeText(
+                ctx,
+                "Saved to Downloads/StreamBridge/\n${destFile.name}",
+                Toast.LENGTH_LONG
+            ).show()
+
+            Log.d("FileVH", "Saved: ${destFile.absolutePath}")
+
+            MediaScannerConnection.scanFile(ctx, arrayOf(destFile.absolutePath), null, null)
+        }
+
+        // Get file extension from MIME type
+        private fun getExtensionFromMimeType(mimeType: String): String {
+            return when {
+                mimeType.startsWith("image/jpeg") -> "jpg"
+                mimeType.startsWith("image/png") -> "png"
+                mimeType.startsWith("image/gif") -> "gif"
+                mimeType.startsWith("image/webp") -> "webp"
+                mimeType.startsWith("image/bmp") -> "bmp"
+                mimeType.startsWith("image/") -> "jpg" // Default for images
+                mimeType.startsWith("video/mp4") -> "mp4"
+                mimeType.startsWith("video/") -> "mp4" // Default for videos
+                mimeType.startsWith("audio/mpeg") -> "mp3"
+                mimeType.startsWith("audio/") -> "mp3" // Default for audio
+                mimeType == "application/pdf" -> "pdf"
+                mimeType == "application/zip" -> "zip"
+                mimeType.startsWith("text/") -> "txt"
+                else -> "bin" // Unknown type
+            }
+        }
 
         private fun openFile(item: ChatItem.FileItem, ctx: Context) {
             try {
