@@ -49,6 +49,10 @@ import androidx.appcompat.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 
+import android.media.ExifInterface
+import android.graphics.Matrix
+import android.graphics.Bitmap
+
 
 class FileBrowserActivity : AppCompatActivity() {
 
@@ -890,7 +894,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         private val metaTv: TextView = view.findViewById(R.id.fileMeta)
         private val thumb: ImageView = view.findViewById(R.id.thumbnail)
         private val timeTv: TextView? = view.findViewById(R.id.messageTime)
-        private val btnSaveAs: Button? = view.findViewById(R.id.btnSaveAs)
+//        private val btnSaveAs: Button? = view.findViewById(R.id.btnSaveAs)
 
 
         fun bind(item: ChatItem.FileItem, ctx: Context) {
@@ -910,9 +914,9 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             }
 
             // Save button click handler
-            btnSaveAs?.setOnClickListener {
-                saveToDownloads(item, ctx)
-            }
+//            btnSaveAs?.setOnClickListener {
+//                saveToDownloads(item, ctx)
+//            }
 
             // Click thumbnail or message to open file
             val openClickListener = View.OnClickListener {
@@ -930,7 +934,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
         // Show context menu for file messages
         private fun showContextMenu(item: ChatItem.FileItem, ctx: Context) {
-            val options = arrayOf("Delete", "Copy text", "Share")
+            val options = arrayOf("Delete", "Copy text", "Share", "Save As")
 
             AlertDialog.Builder(ctx)
                 .setTitle("Message Options")
@@ -939,6 +943,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                         0 -> deleteMessage(item, ctx) // Delete
                         1 -> copyText(item, ctx)      // Copy text
                         2 -> shareItem(item, ctx)     // Share
+                        3 -> saveToDownloads(item, ctx)  // Save As
                     }
                 }
                 .show()
@@ -999,8 +1004,10 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
                 // Method 1: Try BitmapFactory
                 if (file.exists() && file.length() > 0) {
-                    val bitmap = BitmapFactory.decodeFile(filePath)
+                    var bitmap = BitmapFactory.decodeFile(filePath)
                     if (bitmap != null) {
+                        // FIX: Rotate the image to the correct upright position!
+                        bitmap = rotateImageIfRequired(bitmap, filePath)
                         thumb.setImageBitmap(bitmap)
                         thumb.clearColorFilter()
                         Log.d("FileVH", "Image loaded with BitmapFactory")
@@ -1013,8 +1020,9 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                 thumb.postDelayed({
                     try {
                         if (file.exists() && file.length() > 0) {
-                            val bitmap = BitmapFactory.decodeFile(filePath)
+                            var bitmap = BitmapFactory.decodeFile(filePath)
                             if (bitmap != null) {
+                                bitmap = rotateImageIfRequired(bitmap, filePath)
                                 thumb.setImageBitmap(bitmap)
                                 thumb.clearColorFilter()
                                 Log.d("FileVH", "Image loaded on retry")
@@ -1036,6 +1044,31 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             }
         }
 
+        private fun rotateImageIfRequired(bitmap: Bitmap, imagePath: String): Bitmap {
+            try {
+                val ei = ExifInterface(imagePath)
+                val orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+
+                return when (orientation) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> rotateImage(bitmap, 90f)
+                    ExifInterface.ORIENTATION_ROTATE_180 -> rotateImage(bitmap, 180f)
+                    ExifInterface.ORIENTATION_ROTATE_270 -> rotateImage(bitmap, 270f)
+                    else -> bitmap
+                }
+            } catch (e: Exception) {
+                Log.e("FileVH", "Could not read Exif data: ${e.message}")
+                return bitmap
+            }
+        }
+
+        private fun rotateImage(img: Bitmap, degree: Float): Bitmap {
+            val matrix = Matrix()
+            matrix.postRotate(degree)
+            val rotatedImg = Bitmap.createBitmap(img, 0, 0, img.width, img.height, matrix, true)
+            img.recycle() // Free up the memory of the original sideways image
+            return rotatedImg
+        }
+
         private fun showPlaceholder() {
             thumb.setImageResource(R.drawable.ic_launcher_background)
             thumb.setColorFilter(android.graphics.Color.LTGRAY)
@@ -1048,7 +1081,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
         // Show dialog for custom filename
         private fun showSaveDialog(item: ChatItem.FileItem, ctx: Context) {
-            val dialogView = LayoutInflater.from(ctx).inflate(android.R.layout.select_dialog_item, null)
+//            val dialogView = LayoutInflater.from(ctx).inflate(android.R.layout.select_dialog_item, null)
             val editText = EditText(ctx).apply {
                 // Pre-fill with current filename (without extension)
                 val nameWithoutExt = if (item.name.contains(".")) {

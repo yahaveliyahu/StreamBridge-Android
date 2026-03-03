@@ -20,8 +20,8 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/thumbnail"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
             android:layout_marginEnd="12dp"
             android:scaleType="centerCrop"
             android:background="@drawable/bg_thumb"
@@ -37,6 +37,7 @@
                 android:id="@+id/fileName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="end"
                 android:text="@string/file_pdf"
                 android:textColor="@android:color/black"
                 android:textSize="15sp"
@@ -48,26 +49,27 @@
                 android:id="@+id/fileMeta"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="end"
                 android:text="@string/_1_2_mb"
                 android:textColor="#666666"
                 android:textSize="13sp"
                 android:layout_marginTop="4dp"/>
 
-            <Button
-                android:id="@+id/btnSaveAs"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:text="Save As"
-                android:textSize="10sp"
-                android:textColor="#333333"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/btn_save_background"
-                android:minWidth="0dp"
-                android:minHeight="0dp"
-                android:layout_gravity="center_horizontal"
-                />
+<!--            <Button-->
+<!--                android:id="@+id/btnSaveAs"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="32dp"-->
+<!--                android:text="Save As"-->
+<!--                android:textSize="10sp"-->
+<!--                android:textColor="#333333"-->
+<!--                android:paddingStart="16dp"-->
+<!--                android:paddingEnd="16dp"-->
+<!--                android:layout_marginTop="8dp"-->
+<!--                android:background="@drawable/btn_save_background"-->
+<!--                android:minWidth="0dp"-->
+<!--                android:minHeight="0dp"-->
+<!--                android:layout_gravity="center_horizontal"-->
+<!--                />-->
 
             </LinearLayout>
 
