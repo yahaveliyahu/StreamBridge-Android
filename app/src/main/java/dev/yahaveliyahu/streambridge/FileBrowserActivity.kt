@@ -46,6 +46,9 @@ import android.util.Log
 import android.media.MediaScannerConnection
 import androidx.appcompat.app.AlertDialog
 
+import android.content.ClipData
+import android.content.ClipboardManager
+
 
 class FileBrowserActivity : AppCompatActivity() {
 
@@ -735,6 +738,18 @@ class FileBrowserActivity : AppCompatActivity() {
             Toast.makeText(this, "Error opening camera: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
+
+    // Remove message from chat
+    fun removeMessage(item: ChatItem) {
+        val position = messages.indexOf(item)
+        if (position >= 0) {
+            messages.removeAt(position)
+            adapter.notifyItemRemoved(position)
+
+            // Update history file
+            saveHistory()
+        }
+    }
 }
 
 /* =======================
@@ -811,8 +826,59 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         fun bind(item: ChatItem.Text) {
             tv.text = item.text
             timeTv?.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(item.timestamp))
+
+            // ✅ NEW: Long press - show context menu for text messages
+            itemView.setOnLongClickListener {
+                showContextMenu(item, itemView.context)
+                true
+            }
+        }
+
+        // ✅ NEW: Show context menu for text messages
+        private fun showContextMenu(item: ChatItem.Text, ctx: Context) {
+            val options = arrayOf("Delete", "Copy text", "Share")
+
+            AlertDialog.Builder(ctx)
+                .setTitle("Message Options")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> deleteMessage(item, ctx)
+                        1 -> copyText(item, ctx)
+                        2 -> shareText(item, ctx)
+                    }
+                }
+                .show()
+        }
+
+        private fun deleteMessage(item: ChatItem.Text, ctx: Context) {
+            AlertDialog.Builder(ctx)
+                .setTitle("Delete Message")
+                .setMessage("Are you sure you want to delete this message?")
+                .setPositiveButton("Delete") { _, _ ->
+                    val activity = ctx as? FileBrowserActivity
+                    activity?.removeMessage(item)
+                    Toast.makeText(ctx, "Message deleted", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        private fun copyText(item: ChatItem.Text, ctx: Context) {
+            val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("message", item.text)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(ctx, "Text copied", Toast.LENGTH_SHORT).show()
+        }
+
+        private fun shareText(item: ChatItem.Text, ctx: Context) {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, item.text)
+            }
+            ctx.startActivity(Intent.createChooser(shareIntent, "Share text"))
         }
     }
+
 
 //    class TextVH(view: View) : RecyclerView.ViewHolder(view) {
 //        private val tv: TextView = view.findViewById(R.id.messageText)
@@ -832,6 +898,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             timeTv?.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(item.timestamp))
             metaTv.text = formatSize(item.sizeBytes)
 
+            // Clear tint for images, restore for files
             if (item.mimeType.startsWith("image/")) {
                 loadImage(item.localPath)
 //                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
@@ -853,17 +920,74 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             }
             thumb.setOnClickListener(openClickListener)
             itemView.setOnClickListener(openClickListener)
+
+            // Long press - show context menu
+            itemView.setOnLongClickListener {
+                showContextMenu(item, ctx)
+                true
+            }
         }
 
-//            val isImage = item.mimeType.startsWith("image/")
-//            if (isImage) {
-//                thumb.clearColorFilter()
-//                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
-//            } else {
-//                thumb.setImageResource(R.drawable.ic_file)
-//            }
-//        }
+        // Show context menu for file messages
+        private fun showContextMenu(item: ChatItem.FileItem, ctx: Context) {
+            val options = arrayOf("Delete", "Copy text", "Share")
 
+            AlertDialog.Builder(ctx)
+                .setTitle("Message Options")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> deleteMessage(item, ctx) // Delete
+                        1 -> copyText(item, ctx)      // Copy text
+                        2 -> shareItem(item, ctx)     // Share
+                    }
+                }
+                .show()
+        }
+
+        // Delete message
+        private fun deleteMessage(item: ChatItem.FileItem, ctx: Context) {
+            AlertDialog.Builder(ctx)
+                .setTitle("Delete Message")
+                .setMessage("Are you sure you want to delete this message?")
+                .setPositiveButton("Delete") { _, _ ->
+                    // Remove from adapter
+                    val activity = ctx as? FileBrowserActivity
+                    activity?.removeMessage(item)
+                    Toast.makeText(ctx, "Message deleted", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        // Copy filename to clipboard
+        private fun copyText(item: ChatItem.FileItem, ctx: Context) {
+            val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("filename", item.name)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(ctx, "Copied: ${item.name}", Toast.LENGTH_SHORT).show()
+        }
+
+        // Share file
+        private fun shareItem(item: ChatItem.FileItem, ctx: Context) {
+            try {
+                val file = File(item.localPath)
+                if (!file.exists()) {
+                    Toast.makeText(ctx, "File not found", Toast.LENGTH_SHORT).show()
+                    return
+                }
+
+                val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = item.mimeType
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                ctx.startActivity(Intent.createChooser(shareIntent, "Share file"))
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("FileVH", "Share error: ${e.message}", e)
+            }
+        }
 
         private fun loadImage(filePath: String) {
             try {
