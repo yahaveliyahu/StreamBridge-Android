@@ -73,6 +73,8 @@ class FileBrowserActivity : AppCompatActivity() {
 
     private fun historyCutoffMillis(): Long = System.currentTimeMillis() - HISTORY_TTL_DAYS * 24L * 60L * 60L * 1000L
 
+    /** Timestamp of the most recent message loaded into [messages], used to detect new history items on resume. */
+    private var latestTimestampLoaded: Long = 0L
 
     private val historyPrefs by lazy { getSharedPreferences("chat_history", MODE_PRIVATE) }
 
@@ -94,7 +96,7 @@ class FileBrowserActivity : AppCompatActivity() {
 
 //                    val type = json.getString("type")
 //                    if (type == "FILE_RECEIVED") {
-                        // File uploaded from computer to phone
+                            // File uploaded from computer to phone
                             val fileName = json.getString("name")
                             val path = json.getString("path")
                             val f = File(path)
@@ -106,11 +108,22 @@ class FileBrowserActivity : AppCompatActivity() {
                             val text = json.optString("text")
                             addMessage(ChatItem.Text(text, false, System.currentTimeMillis()))
                         }
+                        // FILE_TRANSFER: the phone just sent a file to the PC via ShareReceiverActivity.
+                        // Add an outgoing bubble so both sides of the chat stay in sync.
+                        "FILE_TRANSFER" -> {
+                            val fileName = json.optString("fileName", "")
+                            val mime     = json.optString("mimeType", "application/octet-stream")
+                            val size     = json.optLong("fileSize", 0L)
+                            val time     = json.optLong("timestamp", System.currentTimeMillis())
+                            val localPath = File(filesDir, "shared/$fileName").absolutePath
+                            addMessage(ChatItem.FileItem(fileName, localPath, size, mime, true, time))
+                        }
                     }
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
+
 
 //                        addMessage(ChatItem.FileItem(
 //                            name = fileName,
@@ -132,8 +145,7 @@ class FileBrowserActivity : AppCompatActivity() {
 //    }
 
     // Contact permission
-    private val requestContactsPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    private val requestContactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (!granted) Toast.makeText(this, "Need contacts permission", Toast.LENGTH_SHORT).show()
             else pickContactLauncher.launch(null)
         }
@@ -153,7 +165,7 @@ class FileBrowserActivity : AppCompatActivity() {
     { uri: Uri? -> uri?.let { handlePickedUri(it) }}
 
     // ✅ Audio
-    private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent())
+    private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument())
     { uri: Uri? -> uri?.let { handlePickedUri(it) }}
 
     // Contact
@@ -161,18 +173,18 @@ class FileBrowserActivity : AppCompatActivity() {
     { uri: Uri? -> uri?.let { exportContactAsVcf(it) }}
 
     private val takePhotoLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-            if (!success || latestTmpUri == null) return@registerForActivityResult
+        if (!success || latestTmpUri == null) return@registerForActivityResult
 
-            // Protection: Sometimes success=true but the file is empty/not saved
-            val f = latestTmpFile
-            if (f == null || !f.exists() || f.length() <= 0L) {
-                Toast.makeText(this, "The photo was not saved / the file is empty", Toast.LENGTH_SHORT).show()
-                return@registerForActivityResult
-            }
-
-            // Handles just like a gallery
-            handlePickedUri(latestTmpUri!!)
+        // Protection: Sometimes success=true but the file is empty/not saved
+        val f = latestTmpFile
+        if (f == null || !f.exists() || f.length() <= 0L) {
+            Toast.makeText(this, "The photo was not saved / the file is empty", Toast.LENGTH_SHORT).show()
+            return@registerForActivityResult
         }
+
+        // Handles just like a gallery
+        handlePickedUri(latestTmpUri!!)
+    }
 
 
 
@@ -239,6 +251,9 @@ class FileBrowserActivity : AppCompatActivity() {
         LocalBroadcastManager.getInstance(this).registerReceiver(
             chatMessageReceiver, IntentFilter("STREAMBRIDGE_CHAT_EVENT")
         )
+        // Pick up any items added to history while the activity was in the background
+        // (e.g. a file shared via Samsung Notes / My Files / Contacts while we were paused).
+        loadNewHistoryItems()
     }
 
     override fun onPause() {
@@ -300,6 +315,10 @@ class FileBrowserActivity : AppCompatActivity() {
         adapter.notifyItemInserted(messages.size - 1)
         // Scroll down
         chatRecycler.scrollToPosition(messages.size - 1)
+
+        // Keep latestTimestampLoaded in sync so loadNewHistoryItems() on onResume
+        // does NOT re-add items that were already added live (fixes contact duplication bug).
+        if (item.timestamp > latestTimestampLoaded) latestTimestampLoaded = item.timestamp
     }
 
     private fun handlePickedUri(uri: Uri) {
@@ -426,7 +445,7 @@ class FileBrowserActivity : AppCompatActivity() {
             dialog.dismiss(); pickFileLauncher.launch(arrayOf("*/*"))
         }
         view.findViewById<View>(R.id.optMusic)?.setOnClickListener {
-            dialog.dismiss(); pickAudioLauncher.launch("audio/*")
+            dialog.dismiss(); pickAudioLauncher.launch(arrayOf("audio/*"))
         }
 
         view.findViewById<View>(R.id.optNotes)?.setOnClickListener {
@@ -446,19 +465,10 @@ class FileBrowserActivity : AppCompatActivity() {
             launchCamera()
         }
 
-
-//        val optLive = view.findViewById<View>(R.id.optLive)
-//        optLive?.setOnClickListener {
-//            dialog.dismiss()
-//            val intent = Intent(this, CameraActivity::class.java).putExtra("mode", "LIVE")
-//            cameraLauncher.launch(intent)
-//        }
-
         dialog.setContentView(view)
         dialog.show()
     }
 
-    //
     private fun handleIncomingShare(intent: Intent) {
         val action = intent.action ?: return
         val type = intent.type ?: return
@@ -515,6 +525,8 @@ class FileBrowserActivity : AppCompatActivity() {
                     FileOutputStream(destFile).use { output -> input.copyTo(output) }
                 }
 
+                val timestamp = System.currentTimeMillis()
+
                 // Add to chat
                 addMessage(
                     ChatItem.FileItem(
@@ -523,9 +535,21 @@ class FileBrowserActivity : AppCompatActivity() {
                         sizeBytes = destFile.length(),
                         mimeType = "text/x-vcard",
                         isOutgoing = true,
-                        timestamp = System.currentTimeMillis()
+                        timestamp = timestamp
                     )
                 )
+
+                // Send the contact VCF to the PC (was previously missing!)
+                val json = JSONObject().apply {
+                    put("type",         "FILE_TRANSFER")
+                    put("fileName",     fileName)
+                    put("fileSize",     destFile.length())
+                    put("mimeType",     "text/x-vcard")
+                    put("downloadPath", "/files/shared/$fileName")
+                    put("timestamp",    timestamp)
+                }
+                ServerManager.sendToPC(json.toString())
+                Toast.makeText(this, "Contact sent: $displayName", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -534,6 +558,28 @@ class FileBrowserActivity : AppCompatActivity() {
     }
 
     private fun openNotesAppHint() {
+        // Show clear step-by-step instructions before opening Samsung Notes,
+        // because there is no API to directly pick a note – the user must use
+        // Samsung Notes' own Share button and then choose StreamBridge.
+        AlertDialog.Builder(this)
+            .setTitle("📝 Send a Samsung Note")
+            .setMessage(
+                "To send a note to your computer:\n\n" +
+                        "1. Samsung Notes will open now\n" +
+                        "2. Tap the note you want to send\n" +
+                        "3. Tap the  ⋮  menu (top-right corner)\n" +
+                        "4. Tap \"Share\"\n" +
+                        "5. Choose \"StreamBridge\" from the list\n\n" +
+                        "The note will be sent to your computer automatically."
+            )
+            .setPositiveButton("Open Samsung Notes") { _, _ ->
+                launchSamsungNotes()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun launchSamsungNotes() {
         try {
             val samsungNotesPackage = "com.samsung.android.app.notes"
 
@@ -542,8 +588,7 @@ class FileBrowserActivity : AppCompatActivity() {
             if (launchIntent != null) {
                 startActivity(launchIntent)
             } else {
-                // If not installed (or the manifest is out of date), try opening any notes app
-                // (Works on Android 14 and above, or on older Android with generic Intent)
+                // Samsung Notes not installed – open any generic notes app
                 try {
                     val intent = Intent(Intent.ACTION_MAIN)
                     intent.addCategory("android.intent.category.APP_NOTES")
@@ -677,10 +722,9 @@ class FileBrowserActivity : AppCompatActivity() {
         historyPrefs.edit { putString("history", jsonArray.toString()) }
     }
 
-
-
     private fun loadHistory() {
         messages.clear()
+        latestTimestampLoaded = 0L
         val jsonStr = historyPrefs.getString("history", null) ?: return
         val cutoff = historyCutoffMillis()
         val jsonArray = JSONArray(jsonStr)
@@ -705,9 +749,42 @@ class FileBrowserActivity : AppCompatActivity() {
                     obj.getBoolean("out"),
                     time))
             }
+            if (time > latestTimestampLoaded) latestTimestampLoaded = time
         }
         // Instantly clear old history from disk
         historyPrefs.edit { putString("history", kept.toString()) }
+    }
+
+    /**
+     * Called on onResume to pick up any new history items that were added
+     * while FileBrowserActivity was in the background (e.g. a file was shared
+     * via ShareReceiverActivity while the user was in Samsung Notes / My Files).
+     */
+    private fun loadNewHistoryItems() {
+        val jsonStr = historyPrefs.getString("history", null) ?: return
+        val jsonArray = JSONArray(jsonStr)
+        var newLatest = latestTimestampLoaded
+
+        for (i in 0 until jsonArray.length()) {
+            val obj = jsonArray.getJSONObject(i)
+            val time = obj.optLong("time", 0L)
+            // Skip anything already shown
+            if (time <= latestTimestampLoaded) continue
+
+            if (obj.getString("type") == "TEXT") {
+                addMessage(ChatItem.Text(obj.getString("text"), obj.getBoolean("out"), time))
+            } else {
+                addMessage(ChatItem.FileItem(
+                    obj.getString("name"),
+                    obj.getString("path"),
+                    obj.getLong("size"),
+                    obj.getString("mime"),
+                    obj.getBoolean("out"),
+                    time))
+            }
+            if (time > newLatest) newLatest = time
+        }
+        latestTimestampLoaded = newLatest
     }
 
 
@@ -831,14 +908,14 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             tv.text = item.text
             timeTv?.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(item.timestamp))
 
-            // ✅ NEW: Long press - show context menu for text messages
+            // Long press - show context menu for text messages
             itemView.setOnLongClickListener {
                 showContextMenu(item, itemView.context)
                 true
             }
         }
 
-        // ✅ NEW: Show context menu for text messages
+        // Show context menu for text messages
         private fun showContextMenu(item: ChatItem.Text, ctx: Context) {
             val options = arrayOf("Delete", "Copy text", "Share")
 
@@ -1114,7 +1191,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         }
 
 
-        // ✅ NEW: Perform actual save with custom name
+        // Perform actual save with custom name
         private fun performSave(item: ChatItem.FileItem, customName: String, ctx: Context) {
             try {
                 val sourceFile = File(item.localPath)
@@ -1142,8 +1219,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                 }
 
                 // Get Downloads directory
-                val downloadsDir =
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 // Create StreamBridge folder
                 val streamBridgeDir = File(downloadsDir, "StreamBridge")
                 if (!streamBridgeDir.exists()) {
@@ -1166,7 +1242,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                 Toast.makeText(ctx, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
-                // Generate unique filename with timestamp
+        // Generate unique filename with timestamp
 //                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
 //                val originalName = item.name
 //                val extension = if (originalName.contains(".")) originalName.substringAfterLast(".") else ""
@@ -1174,7 +1250,7 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 //                val destFileName = if (extension.isNotEmpty()) "${nameWithoutExt}_$timestamp.$extension" else "${originalName}_$timestamp"
 //                val destFile = File(streamBridgeDir, destFileName)
 
-                // Copy file
+        // Copy file
 //                sourceFile.copyTo(destFile, overwrite = true)
 //                // Show success message
 //                Toast.makeText(ctx, "Saved to Downloads/StreamBridge/\n$destFileName", Toast.LENGTH_LONG).show()

@@ -8,9 +8,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <!-- Storage / Media (Android 13+ uses READ_MEDIA_*; older uses READ_EXTERNAL_STORAGE) -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
+
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
@@ -18,15 +18,18 @@
 
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
+    <!--  Foreground service permissions  -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+
+    <!--  Needed to show a notification on Android 13+  -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera.any" />
 
+    <!--  Required to query Samsung Notes package  -->
     <queries>
         <package android:name="com.samsung.android.app.notes" />
     </queries>
-
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
 
     <application
         android:allowBackup="true"
@@ -39,8 +42,7 @@
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
 
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".MainActivity" android:exported="true">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -49,45 +51,49 @@
 
         </activity>
 
-        <activity
-            android:name=".CameraActivity"
+        <activity android:name=".CameraActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".QRScannerActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".FileBrowserActivity" android:exported="false" android:launchMode="singleTop" android:screenOrientation="portrait"/>
+
+        <!--
+            ShareReceiverActivity: receives ACTION_SEND / ACTION_SEND_MULTIPLE from
+            any app (Samsung Notes, My Files, Contacts, Gallery, Music, …).
+            singleTask ensures FileBrowserActivity is not duplicated on the back-stack.
+         -->
+
+        <activity android:name=".ShareReceiverActivity" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:launchMode="singleTask">
+
+            <!--  Single file of any type  -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
+            <!--  Plain text (Samsung Notes "Share as text")  -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+
+            <!--  Multiple files at once  -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+        </activity>
+
+        <!--
+        StreamBridgeService keeps the HTTP + WebSocket servers alive
+        even when the user leaves the app to pick a file, take a photo,
+        browse contacts, open Samsung Notes, etc.
+        -->
+        <service
+            android:name=".StreamBridgeService"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".QRScannerActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".FileBrowserActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-
-<!--        <activity-->
-<!--            android:name=".ShareReceiverActivity"-->
-<!--            android:exported="true"-->
-<!--            android:launchMode="singleTask">-->
-
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.SEND" />-->
-<!--                <category android:name="android.intent.category.DEFAULT" />-->
-<!--                <data android:mimeType="*/*" />-->
-<!--            </intent-filter>-->
-
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.SEND_MULTIPLE" />-->
-<!--                <category android:name="android.intent.category.DEFAULT" />-->
-<!--                <data android:mimeType="*/*" />-->
-<!--            </intent-filter>-->
-<!--        </activity>-->
-
-<!--        <service-->
-<!--            android:name=".StreamBridgeService"-->
-<!--            android:exported="false"-->
-<!--            android:foregroundServiceType="dataSync" />-->
-
-
+            android:foregroundServiceType="dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -97,6 +103,7 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+
         </provider>
 
     </application>
