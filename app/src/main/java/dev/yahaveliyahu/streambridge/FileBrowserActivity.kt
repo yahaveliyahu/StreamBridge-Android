@@ -118,12 +118,19 @@ class FileBrowserActivity : AppCompatActivity() {
                             val localPath = File(filesDir, "shared/$fileName").absolutePath
                             addMessage(ChatItem.FileItem(fileName, localPath, size, mime, true, time))
                         }
+                        // PC deleted a message – remove the matching item on the phone side
+                        "DELETE" -> {
+                            val ts = json.optLong("timestamp", -1L)
+                            if (ts >= 0) {
+                                val item = messages.firstOrNull { it.timestamp == ts }
+                                if (item != null) removeMessage(item)
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
-
 
 //                        addMessage(ChatItem.FileItem(
 //                            name = fileName,
@@ -932,12 +939,21 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         }
 
         private fun deleteMessage(item: ChatItem.Text, ctx: Context) {
+            if (ServerManager.webSocketServer?.connections.isNullOrEmpty()) {
+                Toast.makeText(ctx, "To delete this message, first connect to the other side", Toast.LENGTH_LONG).show()
+                return
+            }
             AlertDialog.Builder(ctx)
                 .setTitle("Delete Message")
                 .setMessage("Are you sure you want to delete this message?")
                 .setPositiveButton("Delete") { _, _ ->
                     val activity = ctx as? FileBrowserActivity
                     activity?.removeMessage(item)
+                    val json = JSONObject().apply {
+                        put("type", "DELETE")
+                        put("timestamp", item.timestamp)
+                    }
+                    ServerManager.sendToPC(json.toString())
                     Toast.makeText(ctx, "Message deleted", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("Cancel", null)
@@ -1028,6 +1044,10 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
         // Delete message
         private fun deleteMessage(item: ChatItem.FileItem, ctx: Context) {
+            if (ServerManager.webSocketServer?.connections.isNullOrEmpty()) {
+                Toast.makeText(ctx, "To delete this message, first connect to the other side", Toast.LENGTH_LONG).show()
+                return
+            }
             AlertDialog.Builder(ctx)
                 .setTitle("Delete Message")
                 .setMessage("Are you sure you want to delete this message?")
@@ -1035,6 +1055,11 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                     // Remove from adapter
                     val activity = ctx as? FileBrowserActivity
                     activity?.removeMessage(item)
+                    val json = JSONObject().apply {
+                        put("type", "DELETE")
+                        put("timestamp", item.timestamp)
+                    }
+                    ServerManager.sendToPC(json.toString())
                     Toast.makeText(ctx, "Message deleted", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("Cancel", null)
