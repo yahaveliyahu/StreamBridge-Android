@@ -4,6 +4,7 @@
     <string name="status_connected">מחובר באמצעות %1$s.</string>
 
     <string name="connected_to">Connected to %1$s</string>
+    <string name="not_connected">not_connected</string>
 
     <string name="status_running">Status: Running</string>
     <string name="status_stopped">Status: Stopped</string>

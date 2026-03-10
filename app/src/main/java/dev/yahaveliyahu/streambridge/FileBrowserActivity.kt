@@ -90,6 +90,9 @@ class FileBrowserActivity : AppCompatActivity() {
                         "HANDSHAKE" -> {
                             // Getting the computer name
                             val pcName = json.optString("name", "PC")
+                            // Persist so FileBrowserActivity always shows the real name on next open
+//                            getSharedPreferences("conn", MODE_PRIVATE)
+//                                .edit().putString("pc_name", pcName).apply()
                             statusText.text = getString(R.string.connected_to, pcName)
                         }
                         "FILE_RECEIVED" -> {
@@ -126,9 +129,15 @@ class FileBrowserActivity : AppCompatActivity() {
                                 if (item != null) removeMessage(item)
                             }
                         }
+                        // PC disconnected – update the status text
+                        "PC_DISCONNECTED" -> {
+                            statusText.text = getString(R.string.not_connected)
+                        }
                     }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -231,12 +240,15 @@ class FileBrowserActivity : AppCompatActivity() {
             finish()
         }
 
-        // Connected status with computer name (from Intent or SharedPreferences)
-        val pcName = intent.getStringExtra("pc_name")
-            ?: getSharedPreferences("conn", MODE_PRIVATE).getString("pc_name", "DESKTOP-XXXXX")
-            ?: "DESKTOP-XXXXX"
-
-        statusText.text = getString(R.string.status_connected, pcName)
+        // Connected status: prefer the live static field (populated by the latest HANDSHAKE),
+        // then fall back to SharedPreferences, then show "Not connected to the computer".
+        val pcName = ServerManager.connectedPcName
+            ?: getSharedPreferences("conn", MODE_PRIVATE).getString("pc_name", null)
+        if (pcName != null) {
+            statusText.text = getString(R.string.connected_to, pcName)
+        } else {
+            statusText.text = getString(R.string.not_connected)
+        }
 
         // RecyclerView (chat) + scroll to bottom
         layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }

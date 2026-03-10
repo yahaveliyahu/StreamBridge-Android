@@ -25,6 +25,9 @@ class ServerManager(private val context: Context) {
         // משתנה סטטי כדי שנוכל לשלוח הודעות מכל מקום (למשל מתוך הצ'אט)
         var webSocketServer: CommandWebSocketServer? = null
 
+        /** The hostname of the currently-connected PC, or null when not connected. */
+        @Volatile var connectedPcName: String? = null
+
         // ✅ תיקון שגיאת Unresolved Reference
         fun sendToPC(jsonString: String) {
             webSocketServer?.broadcastToAll(jsonString)
@@ -297,7 +300,16 @@ class ServerManager(private val context: Context) {
             conn.send(json.toString())
         }
 
-        override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {}
+        override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+            // Clear the stored name and tell the UI the PC disconnected
+            connectedPcName = null
+            val disconnectIntent = Intent("STREAMBRIDGE_CHAT_EVENT").apply {
+                putExtra("message", JSONObject().apply {
+                    put("type", "PC_DISCONNECTED")
+                }.toString())
+            }
+            LocalBroadcastManager.getInstance(context).sendBroadcast(disconnectIntent)
+        }
 
         override fun onError(conn: WebSocket?, ex: Exception) {}
 
@@ -320,6 +332,19 @@ class ServerManager(private val context: Context) {
 
             if (message == "CAPTURE") { conn.send("CAPTURED"); return }
             if (message == "PING") { conn.send("PONG"); return }
+
+            // ✅ If this is a HANDSHAKE, persist the PC name so FileBrowserActivity
+            //    can show it even if it wasn't open when the connection was established.
+            try {
+                val json = JSONObject(message)
+                if (json.optString("type") == "HANDSHAKE") {
+                    val pcName = json.optString("name", "PC")
+                    ServerManager.connectedPcName = pcName
+                    // Also persist so the Activity can read it after it opens
+                    context.getSharedPreferences("conn", Context.MODE_PRIVATE)
+                        .edit().putString("pc_name", pcName).apply()
+                }
+            } catch (_: Exception) {}
 
             // ✅ 1) שמירה להיסטוריה תמיד
             val historyObj = toHistoryJsonFromPC(message)

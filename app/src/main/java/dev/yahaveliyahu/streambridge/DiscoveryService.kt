@@ -22,8 +22,8 @@ class DiscoveryService(private val context: Context) {
     var onPairingRequest: ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
 
     companion object {
-        private const val SERVICE_TYPE = "_phonepclink._tcp"
-        private const val SERVICE_NAME = "PhonePCLink"
+        private const val SERVICE_TYPE = "_phonepclink._tcp."
+        private const val SERVICE_NAME = "StreamBridge-android"
         private const val PAIRING_PORT = 8082
     }
 
