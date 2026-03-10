@@ -240,10 +240,11 @@ class FileBrowserActivity : AppCompatActivity() {
             finish()
         }
 
+//            ?: getSharedPreferences("conn", MODE_PRIVATE).getString("pc_name", null)
+
         // Connected status: prefer the live static field (populated by the latest HANDSHAKE),
         // then fall back to SharedPreferences, then show "Not connected to the computer".
         val pcName = ServerManager.connectedPcName
-            ?: getSharedPreferences("conn", MODE_PRIVATE).getString("pc_name", null)
         if (pcName != null) {
             statusText.text = getString(R.string.connected_to, pcName)
         } else {

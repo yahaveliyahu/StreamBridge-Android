@@ -303,6 +303,10 @@ class ServerManager(private val context: Context) {
         override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
             // Clear the stored name and tell the UI the PC disconnected
             connectedPcName = null
+            // Also wipe SharedPreferences so a future Activity open never reads a
+            // stale name from a previous session and shows "Connected" incorrectly.
+            context.getSharedPreferences("conn", Context.MODE_PRIVATE)
+                .edit().remove("pc_name").apply()
             val disconnectIntent = Intent("STREAMBRIDGE_CHAT_EVENT").apply {
                 putExtra("message", JSONObject().apply {
                     put("type", "PC_DISCONNECTED")
@@ -339,7 +343,7 @@ class ServerManager(private val context: Context) {
                 val json = JSONObject(message)
                 if (json.optString("type") == "HANDSHAKE") {
                     val pcName = json.optString("name", "PC")
-                    ServerManager.connectedPcName = pcName
+                    connectedPcName = pcName
                     // Also persist so the Activity can read it after it opens
                     context.getSharedPreferences("conn", Context.MODE_PRIVATE)
                         .edit().putString("pc_name", pcName).apply()
