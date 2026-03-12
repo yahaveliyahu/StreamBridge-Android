@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONObject
 
 
 class MainActivity : AppCompatActivity() {
@@ -24,44 +25,27 @@ class MainActivity : AppCompatActivity() {
     private lateinit var filesButton: Button
 
 
-    // Server Administrator
-//    private lateinit var serverManager: ServerManager
-//    private lateinit var discoveryService: DiscoveryService
-
-//    private var nsdManager: NsdManager? = null
-//    private var registrationListener: NsdManager.RegistrationListener? = null
 
     companion object {
         private const val SERVER_PORT = 8080
         private const val PERMISSION_REQUEST_CODE = 100
-//        private const val SERVICE_NAME = "StreamBridge"
-//        private const val SERVICE_TYPE = "_phonepclink._tcp."
     }
 
-//    private val QR_SCAN_REQUEST_CODE = 101
-
-    private val qrScanLauncher =
-        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+    private val qrScanLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode != RESULT_OK) return@registerForActivityResult
-
             val data = result.data ?: return@registerForActivityResult
             val pcIp = data.getStringExtra("pc_ip") ?: return@registerForActivityResult
             val pcName = data.getStringExtra("pc_name") ?: "Unknown PC"
 
-            // Trust this IP immediately and tell the PC to connect
-            StreamBridgeService.instance?.let { /* service already owns discoveryService */ }
             notifyPcToConnect(pcIp)
             Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
         }
 
-//            Toast.makeText(this, "Connected to $pcName at $pcIp", Toast.LENGTH_SHORT).show()
-//
-//            discoveryService.addTrustedIp(pcIp)
+//            // Trust this IP immediately and tell the PC to connect
+//            StreamBridgeService.instance?.let { /* service already owns discoveryService */ }
 //            notifyPcToConnect(pcIp)
-//
-//            Toast.makeText(this, "Found PC: $pcName ($pcIp)\nNow click Connect on PC!", Toast.LENGTH_LONG).show()
+//            Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
 //        }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,15 +66,6 @@ class MainActivity : AppCompatActivity() {
 
         startServerButton.setOnClickListener {startServer()}
         stopServerButton.setOnClickListener {stopServer()}
-
-        // Administrators boot
-//        serverManager = ServerManager(this)
-//        discoveryService = DiscoveryService(this)
-//        nsdManager = getSystemService(NSD_SERVICE) as NsdManager
-
-        // Request permissions and display IP
-        // Setup discovery service callbacks
-//        setupDiscoveryCallbacks()
 
         scanQRButton.setOnClickListener {
             if (isServiceRunning()) qrScanLauncher.launch(Intent(this, QRScannerActivity::class.java))
@@ -142,10 +117,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopServer() {
-        val svcIntent = Intent(this, StreamBridgeService::class.java).apply {
+        startService(Intent(this, StreamBridgeService::class.java).apply {
             action = StreamBridgeService.ACTION_STOP
-        }
-        startService(svcIntent)
+        })
         updateUI()
         Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show()
     }
@@ -171,10 +145,51 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ── QR → notify PC ─────────────────────────────────────────────────────────
+
+    /**
+     * After scanning the PC's QR code, open a TCP connection to port 8083 on the PC
+     * and send a JSON payload containing:
+     *   - the phone's IP  (so the PC knows where to connect)
+     *   - the phone's TLS certificate (base64 DER) so the PC can pin to it
+     *
+     * Previously this just sent the raw IP string. Now it sends JSON so the cert
+     * travels alongside the IP in the same single round-trip.
+     */
+    private fun notifyPcToConnect(pcIp: String) {
+        Thread {
+            try {
+                // Gets the phone's IP
+                val myIp        = getLocalIpAddress() ?: throw Exception("Could not get phone IP")
+                val certManager = CertificateManager()
+                val payload     = JSONObject().apply {
+                    put("ip",          myIp)
+                    put("cert",        certManager.getCertificateBase64())
+                    put("fingerprint", certManager.getFingerprint())
+                }.toString()
+
+                // Connects to the computer on port 8083 and sends it our IP
+                java.net.Socket(pcIp, 8083).use { socket ->
+                    socket.getOutputStream().bufferedWriter().use { out ->
+                        out.write(payload + "\n")
+                        out.flush()
+                    }
+                }
+                runOnUiThread {
+                    Toast.makeText(this, "Signal sent to PC! Check your screen.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this, "Failed to reach PC: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
     // ─────────── Helpers ───────────
 
-    private fun isServiceRunning(): Boolean =
-        StreamBridgeService.instance?.isRunning() == true
+    private fun isServiceRunning(): Boolean = StreamBridgeService.instance?.isRunning() == true
 
     private fun displayIPAddress() {
         val ip = getLocalIpAddress() ?: "Unknown"
@@ -196,39 +211,6 @@ class MainActivity : AppCompatActivity() {
             println("Failed to get local IP: ${e.message}")
             null
         }
-    }
-
-    // A function that sends the phone's IP to the computer
-    private fun notifyPcToConnect(pcIp: String) {
-        Thread {
-            try {
-                // Gets the phone's IP
-                val myIp = getLocalIpAddress() ?: throw Exception("Could not get phone IP")
-
-                // Connects to the computer on port 8083 and sends it our IP
-                java.net.Socket(pcIp, 8083).use { socket ->
-                    socket.getOutputStream().bufferedWriter().use { output ->
-                        output.write("$myIp\n")
-                        output.flush()
-                    }
-                }
-//                val socket = java.net.Socket(pcIp, 8083)
-//                val output = socket.getOutputStream().bufferedWriter()
-//
-//                output.write(myIp + "\n") // Sending the IP
-//                output.flush()
-//                socket.close()
-
-                runOnUiThread {
-                    Toast.makeText(this, "Signal sent to PC! Check your screen.", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this, "Failed to reach PC: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }.start()
     }
 
     private fun updateUI() {
@@ -282,80 +264,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-//    private fun registerService() {
-//        // Preparing the information for transmission
-//        val serviceInfo = NsdServiceInfo().apply {
-//            serviceName = SERVICE_NAME
-//            serviceType = SERVICE_TYPE
-//            port = SERVER_PORT
-//        }
-//
-//        // The listener that reports whether we were able to register online
-//        registrationListener = object : NsdManager.RegistrationListener {
-//            override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-//                // The phone is now transmitting
-//                Log.d("StreamBridge", "Service Registered: ${serviceInfo.serviceName}")
-//            }
-//
-//            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-//                Log.e("StreamBridge", "Registration Failed: $errorCode")
-//            }
-//            override fun onServiceUnregistered(arg0: NsdServiceInfo) {}
-//            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
-//        }
-//
-//        // Performing the actual registration
-//        nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
-//    }
-//
-//    private fun unregisterService() {
-//        registrationListener?.let {
-//            try {
-//                nsdManager?.unregisterService(it)
-//                registrationListener = null
-//            } catch (e: Exception) {e.printStackTrace()}
-//        }
-//    }
-
-
-
-
-
-
-//    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-//        super.onActivityResult(requestCode, resultCode, data)
-//
-//        if (requestCode == QR_SCAN_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
-//            val pcIp = data.getStringExtra("pc_ip") ?: return
-//            val pcName = data.getStringExtra("pc_name") ?: "Unknown PC"
-//
-//            Toast.makeText(this, "Connected to $pcName at $pcIp", Toast.LENGTH_SHORT).show()
-//            if (pcIp != null) {
-//                Toast.makeText(this, "QR Scanned! Sending signal...", Toast.LENGTH_SHORT).show()
-//                discoveryService.addTrustedIp(pcIp)
-//                notifyPcToConnect(pcIp)
-//                Toast.makeText(this, "Found PC: $pcName ($pcIp)\nNow click Connect on PC!", Toast.LENGTH_LONG).show()
-//            }
-//        }
-//    }
-
-
-
-//    override fun onDestroy() {
-//        super.onDestroy()
-//        //stopServer() // This shuts down both the server and the broadcast (NSD). Removed to prevent disconnects when switching applications
-//
-////        serverManager.stopServer()
-////        discoveryService.stopDiscovery()
-//    }
-//}

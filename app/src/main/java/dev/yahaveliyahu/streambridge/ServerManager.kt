@@ -3,7 +3,6 @@ package dev.yahaveliyahu.streambridge
 
 import android.content.Context
 import android.content.Intent
-import android.os.Environment
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import fi.iki.elonen.NanoHTTPD
@@ -15,6 +14,9 @@ import java.io.File
 import java.io.FileInputStream
 import java.net.InetSocketAddress
 
+import org.java_websocket.server.DefaultSSLWebSocketServerFactory
+
+
 
 class ServerManager(private val context: Context) {
     private var httpServer: FileServer? = null
@@ -22,31 +24,25 @@ class ServerManager(private val context: Context) {
     companion object {
         private const val TAG = "ServerManager"
         var currentCameraFrame: ByteArray? = null
-        // משתנה סטטי כדי שנוכל לשלוח הודעות מכל מקום (למשל מתוך הצ'אט)
+        // Static variable so we can send messages from anywhere (e.g. from the chat)
         var webSocketServer: CommandWebSocketServer? = null
 
-        /** The hostname of the currently-connected PC, or null when not connected. */
+        // The hostname of the currently-connected PC, or null when not connected
         @Volatile var connectedPcName: String? = null
 
-        // ✅ תיקון שגיאת Unresolved Reference
         fun sendToPC(jsonString: String) {
             webSocketServer?.broadcastToAll(jsonString)
         }
 
-        // ✅ פונקציה לשליחת הודעה למחשב (JSON)
-//        fun sendToPC(jsonMessage: String) {
-//            webSocketServer?.broadcastToAll(jsonMessage)
-//        }
-
-        // ✅ פתרון לבעיה 3: שליחת נתיב URL תקין למחשב לכל סוגי הקבצים
-        // ✅ פונקציה לשליחת קובץ למחשב בצורה שתמנע קריסה
+        // Sending a valid URL path to a computer for all file types
+        // A function to send a file to a computer in a way that prevents a crash
         fun sendFileToPC(file: File, mimeType: String) {
             val json = JSONObject().apply {
                 put("type", "FILE_TRANSFER")
                 put("fileName", file.name)
                 put("fileSize", file.length())
                 put("mimeType", mimeType)
-                // שימוש בנתיב רשת (URL) במקום נתיב מקומי
+                // Using a network path (URL) instead of a local path
                 put("downloadPath", "/files/shared/${file.name}")
                 put("timestamp", System.currentTimeMillis())
             }
@@ -54,27 +50,28 @@ class ServerManager(private val context: Context) {
         }
     }
 
-//        fun sendTextToPC(text: String) {
-//            val json = JSONObject().apply {
-//                put("type", "TEXT")
-//                put("text", text)
-//                put("timestamp", System.currentTimeMillis())
-//            }
-//            webSocketServer?.broadcastToAll(json.toString())
-//        }
-//    }
+    // ── Server start / stop ─────────────────────────────────────────────────────
 
     fun startServer() {
         try {
+            // Each call creates a fresh CertificateManager — they all share the same
+            // Android Keystore entry so this is cheap and correct.
+            val certManager = CertificateManager()
+            val sslContext  = certManager.getSSLContext()   // also calls ensureCertificate()
+
+            // ── HTTPS server (port 8080) ──────────────────────────────────────────
             httpServer = FileServer(8080, context)
+            httpServer?.makeSecure(sslContext.serverSocketFactory, null)
             httpServer?.start()
 
-            // מעבירים את ה-Context כדי שנוכל לשדר הודעות ל-UI
-            // שימוש ב-applicationContext מונע Memory Leak של Activity
+            // ── WSS server (port 8081) ────────────────────────────────────────────
+            // Passing the Context so we can broadcast messages to the UI
+            // Using applicationContext prevents Activity Memory Leak
             webSocketServer = CommandWebSocketServer(8081, context.applicationContext)
+            webSocketServer?.setWebSocketFactory(DefaultSSLWebSocketServerFactory(sslContext))
             webSocketServer?.start()
 
-            Log.d(TAG, "Servers started successfully")
+            Log.d(TAG, "Servers started successfully (TLS enabled)")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting servers", e)
         }
@@ -90,30 +87,25 @@ class ServerManager(private val context: Context) {
         }
     }
 
-    fun isRunning(): Boolean {
-        return httpServer?.isAlive == true
-    }
+    fun isRunning(): Boolean = httpServer?.isAlive == true
 
-    // ================= HTTP SERVER (קבצים) =================
+    // ── HTTP server (NanoHTTPD) ─────────────────────────────────────────────────
     class FileServer(port: Int, private val context: Context) : NanoHTTPD(port) {
         override fun serve(session: IHTTPSession): Response {
             val uri = session.uri
-
             return when {
                 uri == "/camera" -> serveCameraStream()
                 uri.startsWith("/files/") -> serveFile(uri)
-//                uri == "/file-list" -> serveFileList()
                 uri == "/upload" && session.method == Method.POST -> handleUpload(session)
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
             }
         }
 
         private fun serveFile(uri: String): Response {
-            // המרת ה-URL לנתיב פנימי אמיתי בטלפון
-            // ה-URL: /files/shared/image.jpg  --->  הנתיב: /data/user/0/.../shared/image.jpg
+            // Convert the URL to a real internal path on your phone
+            // URL: /files/shared/image.jpg ---> Path: /data/user/0/.../shared/image.jpg
             val relativePath = uri.removePrefix("/files/shared/").trimStart('/')
             val file = File(File(context.filesDir, "shared"), relativePath)
-
             return if (file.exists()) {
                 val mime = getMimeType(file.name)
                 newFixedLengthResponse(Response.Status.OK, mime, FileInputStream(file), file.length())
@@ -124,39 +116,30 @@ class ServerManager(private val context: Context) {
 
         private fun handleUpload(session: IHTTPSession): Response {
             try {
-                // NanoHTTPD דורש parsing מיוחד להעלאות
+                // NanoHTTPD requires special parsing for uploads
                 val files = HashMap<String, String>()
                 session.parseBody(files)
-                val params = session.parameters
-
-                // הקובץ הזמני שאנדרואיד שמר
-//                val tempFilePath = files["file"]
-//                val fileName = params["file"]?.firstOrNull() // השם המקורי שנשלח מהמחשב
+//                val params = session.parameters
 
                 val tempFilePath = files["file"]
-
-// ✅ 1) שם שמגיע מה-URL: /upload?name=...
+                // Name that comes from the URL: /upload?name=...
                 val encodedNameFromUrl = session.parameters["name"]?.firstOrNull()
                 val fileNameFromUrl = encodedNameFromUrl?.let {
                     try { java.net.URLDecoder.decode(it, "UTF-8") } catch (_: Exception) { it }
                 }
-
-// ✅ 2) fallback ישן: אם משום מה אין name ב-URL
+                // Old fallback: if for some reason there is no name in the URL
                 val fileNameFallback = session.parameters["file"]?.firstOrNull()
-
-// ✅ 3) בחירה סופית
+                // Final choice
                 val fileName = fileNameFromUrl ?: fileNameFallback ?: "file_${System.currentTimeMillis()}"
 
-
-                if (tempFilePath != null && fileName != null) {
+                if (tempFilePath != null) {
                     val src = File(tempFilePath)
                     val sharedDir = File(context.filesDir, "shared")
                     if (!sharedDir.exists()) sharedDir.mkdirs()
                     val dst = File(sharedDir, fileName)
-
                     src.copyTo(dst, overwrite = true)
 
-                    // ✅ שמירה להיסטוריה גם אם הצ'אט לא פתוח
+                    // Save to history even if the chat is not open
                     ChatHistoryStore.append(context, JSONObject().apply {
                         put("type", "FILE")
                         put("name", fileName)
@@ -167,7 +150,7 @@ class ServerManager(private val context: Context) {
                         put("time", System.currentTimeMillis())
                     })
 
-                    // שידור הודעה ל-UI שהתקבל קובץ
+                    // Broadcast a message to the UI that a file has been received
                     val json = JSONObject().apply {
                         put("type", "FILE_RECEIVED")
                         put("name", fileName)
@@ -195,79 +178,6 @@ class ServerManager(private val context: Context) {
             }
         }
 
-
-//        private fun serveFile(uri: String): Response {
-//            return try {
-//                // Security check: prevents accessing files outside allowed directories implicitly
-//                val filePath = uri.removePrefix("/files")
-//                // ✅ התיקון הקריטי: חיפוש בתיקיית האפליקציה (shared) ולא ב-Root
-//                // אם הנתיב מתחיל ב-/, File מתייחס אליו כנתיב אבסולוטי. אנחנו רוצים יחסי.
-//                val safePath = filePath.trimStart('/')
-//                val file = File(context.filesDir, safePath)
-//
-//                if (!file.exists() || !file.isFile) {
-//                    return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "File not found")
-//                }
-//
-//                val mimeType = getMimeType(file.name)
-//                val fis = FileInputStream(file)
-//                return newFixedLengthResponse(Response.Status.OK, mimeType, fis, file.length())
-//            } catch (e: Exception) {
-//                return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
-//            }
-//        }
-
-//        private fun serveFileList(): Response {
-//            try {
-//                val fileList = getStorageFiles()
-//                val json = buildFileListJson(fileList)
-//                return newFixedLengthResponse(Response.Status.OK, "application/json", json)
-//            } catch (e: Exception) {
-//                return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
-//            }
-//        }
-
-//        private fun getStorageFiles(): List<File> {
-//            val files = mutableListOf<File>()
-//
-//            // FIX: Scan real public directories instead of app-private storage
-//            val dirsToScan = listOf(
-//                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-//                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-//                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-//            )
-//
-//            dirsToScan.forEach { dir ->
-//                if (dir.exists()) {
-//                    // Only go 2 levels deep to avoid timeouts on large storage
-//                    dir.walk().maxDepth(2).forEach { file ->
-//                        if (file.isFile && !file.isHidden) {
-//                            files.add(file)
-//                        }
-//                    }
-//                }
-//            }
-//            return files
-//        }
-
-//        private fun buildFileListJson(files: List<File>): String {
-//            // Check if empty to avoid JSON errors
-//            if (files.isEmpty()) return "[]"
-//            val jsonArray = files.joinToString(",") { file ->
-//                // Escape backslashes for JSON safety
-//                val safePath = file.absolutePath.replace("\\", "\\\\")
-//                """
-//                {
-//                    "name": "${file.name}",
-//                    "path": "$safePath",
-//                    "size": ${file.length()},
-//                    "type": "${getMimeType(file.name)}"
-//                }
-//                """.trimIndent()
-//            }
-//            return "[$jsonArray]"
-//        }
-
         private fun getMimeType(fileName: String): String {
             return when (fileName.substringAfterLast('.', "").lowercase()) {
                 "jpg", "jpeg" -> "image/jpeg"
@@ -285,18 +195,17 @@ class ServerManager(private val context: Context) {
         }
     }
 
-    // ================= WEBSOCKET SERVER (צ'אט) =================
+    // ================= WEBSOCKET SERVER =================
     class CommandWebSocketServer(port: Int, private val context: Context) : WebSocketServer(InetSocketAddress(port)) {
 
-        companion object {
-            private const val TAG = "ServerManager"
-        }
+        companion object { private const val TAG = "ServerManager" }
+
         override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
+            Log.d(TAG, "New connection from ${conn.remoteSocketAddress}")
             val json = JSONObject().apply {
                 put("type", "HANDSHAKE")
                 put("name", android.os.Build.MODEL)
             }
-            Log.d(TAG, "New connection from ${conn.remoteSocketAddress}")
             conn.send(json.toString())
         }
 
@@ -307,38 +216,26 @@ class ServerManager(private val context: Context) {
             // stale name from a previous session and shows "Connected" incorrectly.
             context.getSharedPreferences("conn", Context.MODE_PRIVATE)
                 .edit().remove("pc_name").apply()
-            val disconnectIntent = Intent("STREAMBRIDGE_CHAT_EVENT").apply {
-                putExtra("message", JSONObject().apply {
-                    put("type", "PC_DISCONNECTED")
-                }.toString())
-            }
-            LocalBroadcastManager.getInstance(context).sendBroadcast(disconnectIntent)
+            LocalBroadcastManager.getInstance(context).sendBroadcast(
+                Intent("STREAMBRIDGE_CHAT_EVENT").apply {
+                    putExtra("message", JSONObject().apply {
+                        put("type", "PC_DISCONNECTED")
+                    }.toString())
+                }
+            )
         }
 
-        override fun onError(conn: WebSocket?, ex: Exception) {}
+        override fun onError(conn: WebSocket?, ex: Exception) { Log.e(TAG, "WebSocket error", ex) }
 
-        override fun onStart() {}
-
-        // קבלת הודעה מהמחשב ושידור ל-Activity
-//        override fun onMessage(conn: WebSocket, message: String) {
-//            Log.d(TAG, "Received: $message")
-//            if (message == "CAPTURE") conn.send("CAPTURED")
-//            if (message == "PING") conn.send("PONG")
-//
-//            // שולח Broadcast ל-FileBrowserActivity
-//            val intent = Intent("STREAMBRIDGE_CHAT_EVENT")
-//            intent.putExtra("message", message)
-//            LocalBroadcastManager.getInstance(context).sendBroadcast(intent)
-//        }
+        override fun onStart() { Log.d(TAG, "WSS server started on port 8081") }
 
         override fun onMessage(conn: WebSocket, message: String) {
             Log.d(TAG, "Received: $message")
-
             if (message == "CAPTURE") { conn.send("CAPTURED"); return }
             if (message == "PING") { conn.send("PONG"); return }
 
-            // ✅ If this is a HANDSHAKE, persist the PC name so FileBrowserActivity
-            //    can show it even if it wasn't open when the connection was established.
+            // If this is a HANDSHAKE, persist the PC name so FileBrowserActivity
+            // can show it even if it wasn't open when the connection was established.
             try {
                 val json = JSONObject(message)
                 if (json.optString("type") == "HANDSHAKE") {
@@ -350,18 +247,15 @@ class ServerManager(private val context: Context) {
                 }
             } catch (_: Exception) {}
 
-            // ✅ 1) שמירה להיסטוריה תמיד
+            // Always keeping history
             val historyObj = toHistoryJsonFromPC(message)
-            if (historyObj != null) {
-                ChatHistoryStore.append(context, historyObj)
-            }
+            if (historyObj != null) { ChatHistoryStore.append(context, historyObj) }
 
-            // ✅ 2) Broadcast ל-UI (אם הצ'אט פתוח הוא יתעדכן מיד)
+            // Broadcast to UI (if chat is open it will update immediately)
             val intent = Intent("STREAMBRIDGE_CHAT_EVENT")
             intent.putExtra("message", message)
             LocalBroadcastManager.getInstance(context).sendBroadcast(intent)
         }
-
 
         private fun toHistoryJsonFromPC(message: String): JSONObject? {
             return try {
@@ -373,12 +267,12 @@ class ServerManager(private val context: Context) {
                     "TEXT" -> JSONObject().apply {
                         put("type", "TEXT")
                         put("text", json.optString("text", ""))
-                        put("out", false)          // נכנס מה-PC
+                        put("out", false)          // Logged in from PC
                         put("time", json.optLong("timestamp", now))
                     }
 
                     "FILE_RECEIVED" -> JSONObject().apply {
-                        // זה קובץ שהגיע מהמחשב לטלפון דרך /upload
+                        // This is a file that came from the computer to the phone via /upload
                         put("type", "FILE")
                         put("name", json.optString("name", "file"))
                         put("path", json.optString("path", ""))
@@ -387,13 +281,10 @@ class ServerManager(private val context: Context) {
                         put("out", false)
                         put("time", json.optLong("timestamp", now))
                     }
-
-                    // HANDSHAKE / PING / PONG / CAPTURE וכל מה שלא צריך בהיסטוריה
+                    // HANDSHAKE / PING / PONG / CAPTURE and everything else that is not needed in history
                     else -> null
                 }
-            } catch (_: Exception) {
-                null
-            }
+            } catch (_: Exception) { null }
         }
 
         private fun mimeFromName(name: String): String {
@@ -411,202 +302,8 @@ class ServerManager(private val context: Context) {
             }
         }
 
-
-
-
         fun broadcastToAll(message: String) {
             connections.forEach { it.send(message) }
         }
     }
 }
-
-//
-//
-//import android.content.Context
-//import android.util.Log
-//import fi.iki.elonen.NanoHTTPD
-//import org.java_websocket.WebSocket
-//import org.java_websocket.handshake.ClientHandshake
-//import org.java_websocket.server.WebSocketServer
-//import java.io.File
-//import java.io.FileInputStream
-//import java.net.InetSocketAddress
-//
-//class ServerManager(private val context: Context) {
-//    private var httpServer: FileServer? = null
-//    private var webSocketServer: CommandWebSocketServer? = null
-//
-//    companion object {
-//        private const val TAG = "ServerManager"
-//        var currentCameraFrame: ByteArray? = null
-//    }
-//
-//    fun startServer() {
-//        try {
-//            // Start HTTP server
-//            httpServer = FileServer(8080, context)
-//            httpServer?.start()
-//
-//            // Start WebSocket server
-//            webSocketServer = CommandWebSocketServer(8081)
-//            webSocketServer?.start()
-//
-//            Log.d(TAG, "Servers started successfully")
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error starting servers", e)
-//        }
-//    }
-//
-//    fun stopServer() {
-//        try {
-//            httpServer?.stop()
-//            webSocketServer?.stop()
-//            Log.d(TAG, "Servers stopped")
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error stopping servers", e)
-//        }
-//    }
-//
-//    fun isRunning(): Boolean {
-//        return httpServer?.isAlive == true
-//    }
-//
-//    // File Server using NanoHTTPD
-//    class FileServer(port: Int, private val context: Context) : NanoHTTPD(port) {
-//        override fun serve(session: IHTTPSession): Response {
-//            val uri = session.uri
-//
-//            return when {
-//                uri == "/camera" -> serveCameraStream()
-//                uri.startsWith("/files/") -> serveFile(uri)
-//                uri == "/file-list" -> serveFileList()
-//                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
-//            }
-//        }
-//
-//        private fun serveCameraStream(): Response {
-//            val frame = currentCameraFrame
-//            return if (frame != null) {
-//                newFixedLengthResponse(Response.Status.OK, "image/jpeg", frame.inputStream(), frame.size.toLong())
-//            } else {
-//                newFixedLengthResponse(Response.Status.NO_CONTENT, MIME_PLAINTEXT, "No camera frame available")
-//            }
-//        }
-//
-//        private fun serveFile(uri: String): Response {
-//            try {
-//                val filePath = uri.removePrefix("/files")
-//                val file = File(filePath)
-//
-//                if (!file.exists() || !file.isFile) {
-//                    return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "File not found")
-//                }
-//
-//                val mimeType = getMimeType(file.name)
-//                val fis = FileInputStream(file)
-//                return newFixedLengthResponse(Response.Status.OK, mimeType, fis, file.length())
-//            } catch (e: Exception) {
-//                return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
-//            }
-//        }
-//
-//        private fun serveFileList(): Response {
-//            try {
-//                val fileList = getStorageFiles()
-//                val json = buildFileListJson(fileList)
-//                return newFixedLengthResponse(Response.Status.OK, "application/json", json)
-//            } catch (e: Exception) {
-//                return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
-//            }
-//        }
-//
-//        private fun getStorageFiles(): List<File> {
-//            val files = mutableListOf<File>()
-//
-//            // Get files from common directories
-//            val dirs = listOf(
-//                context.getExternalFilesDir(null),
-//                context.filesDir
-//            )
-//
-//            dirs.forEach { dir ->
-//                dir?.walkTopDown()?.forEach { file ->
-//                    if (file.isFile) {
-//                        files.add(file)
-//                    }
-//                }
-//            }
-//
-//            return files
-//        }
-//
-//        private fun buildFileListJson(files: List<File>): String {
-//            val jsonArray = files.joinToString(",") { file ->
-//                """
-//                {
-//                    "name": "${file.name}",
-//                    "path": "${file.absolutePath}",
-//                    "size": ${file.length()},
-//                    "type": "${getMimeType(file.name)}"
-//                }
-//                """.trimIndent()
-//            }
-//            return "[$jsonArray]"
-//        }
-//
-//        private fun getMimeType(fileName: String): String {
-//            return when (fileName.substringAfterLast('.', "").lowercase()) {
-//                "jpg", "jpeg" -> "image/jpeg"
-//                "png" -> "image/png"
-//                "gif" -> "image/gif"
-//                "mp4" -> "video/mp4"
-//                "mp3" -> "audio/mpeg"
-//                "pdf" -> "application/pdf"
-//                "txt" -> "text/plain"
-//                else -> "application/octet-stream"
-//            }
-//        }
-//    }
-//
-//    // WebSocket Server for commands
-//    class CommandWebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
-//
-//        companion object {
-//            private const val TAG = "ServerManager"
-//        }
-//        override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
-//            Log.d(TAG, "New connection from ${conn.remoteSocketAddress}")
-//            conn.send("Connected to Phone")
-//        }
-//
-//        override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
-//            Log.d(TAG, "Connection closed: $reason")
-//        }
-//
-//        override fun onMessage(conn: WebSocket, message: String) {
-//            Log.d(TAG, "Received message: $message")
-//
-//            when (message) {
-//                "CAPTURE" -> {
-//                    conn.send("CAPTURED")
-//                    // The capture will be handled in CameraActivity
-//                }
-//                "PING" -> {
-//                    conn.send("PONG")
-//                }
-//            }
-//        }
-//
-//        override fun onError(conn: WebSocket?, ex: Exception) {
-//            Log.e(TAG, "WebSocket error", ex)
-//        }
-//
-//        override fun onStart() {
-//            Log.d(TAG, "WebSocket server started")
-//        }
-//
-//        fun broadcastToAll(message: String) {
-//            connections.forEach { it.send(message) }
-//        }
-//    }
-//}

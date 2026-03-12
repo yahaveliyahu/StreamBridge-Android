@@ -126,10 +126,24 @@ class DiscoveryService(private val context: Context) {
         }
     }
 
+    /**
+     * Sends the pairing response.
+     *
+     * When approved, we also include the phone's TLS certificate (base64 DER)
+     * so Windows can pin to it for all subsequent encrypted connections.
+     * The pairing channel itself is plain TCP on the local LAN — TOFU model,
+     * same as SSH.  All actual data (messages, files) travels over TLS.
+     */
     private fun sendResponse(output: java.io.BufferedWriter, approved: Boolean) {
+        val certManager = CertificateManager()
         val response = JSONObject().apply {
             put("approved", approved)
-            if (approved) put("phone_name", android.os.Build.MODEL)
+            if (approved) {
+                put("phone_name", android.os.Build.MODEL)
+                // ── TLS cert for Windows to pin ───────────────────────────────
+                put("cert", certManager.getCertificateBase64())
+                put("fingerprint", certManager.getFingerprint())
+            }
         }
         output.write(response.toString() + "\n")
         output.flush()
@@ -141,153 +155,3 @@ class DiscoveryService(private val context: Context) {
         try { nsdManager?.unregisterService(registrationListener) } catch (_: Exception) {}
     }
 }
-
-
-
-
-
-//package dev.yahaveliyahu.streambridge
-//
-//import android.content.Context
-//import android.net.nsd.NsdManager
-//import android.net.nsd.NsdServiceInfo
-//import android.util.Log
-//import org.json.JSONObject
-//import java.net.ServerSocket
-//import java.net.Socket
-//import kotlin.concurrent.thread
-//
-//class DiscoveryService(private val context: Context) {
-//    private var nsdManager: NsdManager? = null
-//    private var registrationListener: NsdManager.RegistrationListener? = null
-//    private var pairingServer: ServerSocket? = null
-//    private var isRunning = false
-//    private val tag = "DiscoveryService"
-//
-//    var onPairingRequest: ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
-//
-//    companion object {
-//        private const val SERVICE_TYPE = "_phonepclink._tcp"
-//        private const val SERVICE_NAME = "PhonePCLink"
-//        private const val PAIRING_PORT = 8082
-//    }
-//
-//    fun startDiscovery(phoneIp: String, phonePort: Int) {
-//        // Register NSD service for discovery
-//        registerNsdService(phoneIp, phonePort)
-//
-//        // Start pairing server
-//        startPairingServer()
-//    }
-//
-//    private fun registerNsdService(phoneIp: String, phonePort: Int) {
-//        val serviceInfo = NsdServiceInfo().apply {
-//            serviceName = SERVICE_NAME
-//            serviceType = SERVICE_TYPE
-//            port = phonePort
-//            setAttribute("ip", phoneIp)
-//        }
-//
-//        nsdManager = (context.getSystemService(Context.NSD_SERVICE) as NsdManager)
-//
-//        registrationListener = object : NsdManager.RegistrationListener {
-//            override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-//                Log.d(tag, "Service registered: ${serviceInfo.serviceName}")
-//            }
-//
-//            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-//                Log.e(tag, "Service registration failed: $errorCode")
-//            }
-//
-//            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-//                Log.d(tag, "Service unregistered")
-//            }
-//
-//            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-//                Log.e(tag, "Service unregistration failed: $errorCode")
-//            }
-//        }
-//
-//        nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
-//    }
-//
-//    private fun startPairingServer() {
-//        if (isRunning) return
-//
-//        isRunning = true
-//        thread {
-//            try {
-//                pairingServer = ServerSocket(PAIRING_PORT)
-//                Log.d(tag, "Pairing server started on port $PAIRING_PORT")
-//
-//                while (isRunning) {
-//                    try {
-//                        val client = pairingServer?.accept()
-//                        if (client != null) {
-//                            handlePairingRequest(client)
-//                        }
-//                    } catch (e: Exception) {
-//                        if (isRunning) {
-//                            Log.e(tag, "Error accepting client", e)
-//                        }
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                Log.e(tag, "Error starting pairing server", e)
-//            }
-//        }
-//    }
-//
-//    private fun handlePairingRequest(client: Socket) {
-//        thread {
-//            try {
-//                val input = client.getInputStream().bufferedReader()
-//                val output = client.getOutputStream().bufferedWriter()
-//
-//                val request = input.readLine()
-//                val json = JSONObject(request)
-//                val pcName = json.getString("name")
-//                val pcIp = client.inetAddress.hostAddress ?: "Unknown"
-//
-//                Log.d(tag, "Pairing request from $pcName ($pcIp)")
-//
-//                // Ask user for approval
-//                onPairingRequest?.invoke(pcName, pcIp) { approved ->
-//                    try {
-//                        val response = JSONObject().apply {
-//                            put("approved", approved)
-//                            if (approved) {
-//                                put("phone_name", android.os.Build.MODEL)
-//                            }
-//                        }
-//                        output.write(response.toString() + "\n")
-//                        output.flush()
-//                    } catch (e: Exception) {
-//                        Log.e(tag, "Error sending response", e)
-//                    } finally {
-//                        client.close()
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                Log.e(tag, "Error handling pairing request", e)
-//                client.close()
-//            }
-//        }
-//    }
-//
-//    fun stopDiscovery() {
-//        isRunning = false
-//
-//        try {
-//            pairingServer?.close()
-//        } catch (e: Exception) {
-//            Log.e(tag, "Error closing pairing server", e)
-//        }
-//
-//        try {
-//            nsdManager?.unregisterService(registrationListener)
-//        } catch (e: Exception) {
-//            Log.e(tag, "Error unregistering NSD service", e)
-//        }
-//    }
-//}
