@@ -32,20 +32,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val qrScanLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode != RESULT_OK) return@registerForActivityResult
-            val data = result.data ?: return@registerForActivityResult
-            val pcIp = data.getStringExtra("pc_ip") ?: return@registerForActivityResult
-            val pcName = data.getStringExtra("pc_name") ?: "Unknown PC"
-
-            notifyPcToConnect(pcIp)
-            Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val data = result.data ?: return@registerForActivityResult
+        val pcIp = data.getStringExtra("pc_ip") ?: return@registerForActivityResult
+        val pcName = data.getStringExtra("pc_name") ?: "Unknown PC"
+        // Trust this IP immediately and tell the PC to connect
+        notifyPcToConnect(pcIp)
+        Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
         }
-
-//            // Trust this IP immediately and tell the PC to connect
-//            StreamBridgeService.instance?.let { /* service already owns discoveryService */ }
-//            notifyPcToConnect(pcIp)
-//            Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
-//        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +77,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         updateUI()
+
+        requestBatteryOptimizationExemption()
     }
 
     override fun onResume() {
@@ -231,6 +227,19 @@ class MainActivity : AppCompatActivity() {
             scanQRButton.isEnabled      = false
             cameraButton.isEnabled      = false
             filesButton.isEnabled       = false
+        }
+    }
+
+    // ─────────── Battery optimization ───────────
+
+    private fun requestBatteryOptimizationExemption() {
+        val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            val intent = Intent(
+                android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                android.net.Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
         }
     }
 
