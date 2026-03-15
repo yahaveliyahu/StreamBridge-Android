@@ -2,7 +2,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="10dp"
+    android:padding="@dimen/padding_10"
     android:gravity="center_vertical">
 
     <androidx.appcompat.widget.AppCompatTextView
@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="@string/file_jpg_shared"
-        android:textSize="16sp"
+        android:textSize="@dimen/size_16"
         android:maxLines="1"
         android:ellipsize="end" />
 
@@ -20,8 +20,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/_120_kb"
-        android:paddingStart="10dp"
-        android:paddingEnd="0dp"
+        android:paddingStart="@dimen/padding_10"
+        android:paddingEnd="@dimen/padding_0"
         android:alpha="0.7" />
 
     <androidx.appcompat.widget.AppCompatButton
@@ -29,6 +29,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/x"
-        android:layout_marginStart="10dp" />
+        android:layout_marginStart="@dimen/margin_10" />
 
 </LinearLayout>

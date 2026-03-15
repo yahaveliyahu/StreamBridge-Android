@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="width_0">0dp</dimen>
+    <dimen name="width_42">42dp</dimen>
+    <dimen name="width_44">44dp</dimen>
+    <dimen name="width_48">48dp</dimen>
+    <dimen name="width_56">56dp</dimen>
+    <dimen name="width_59">59dp</dimen>
+    <dimen name="width_70">70dp</dimen>
+    <dimen name="width_250">250dp</dimen>
+    <dimen name="width_320">320dp</dimen>
+
+    <dimen name="maxWidth_260">260dp</dimen>
+    <dimen name="maxWidth_280">280dp</dimen>
+
+    <dimen name="minWidth_200">200dp</dimen>
+
+    <dimen name="height_0">0dp</dimen>
+    <dimen name="height_1">1dp</dimen>
+    <dimen name="height_5">5dp</dimen>
+    <dimen name="height_42">42dp</dimen>
+    <dimen name="height_44">44dp</dimen>
+    <dimen name="height_56">56dp</dimen>
+    <dimen name="height_70">70dp</dimen>
+    <dimen name="height_250">250dp</dimen>
+
+    <dimen name="size_11">11sp</dimen>
+    <dimen name="size_12">12sp</dimen>
+    <dimen name="size_13">13sp</dimen>
+    <dimen name="size_15">15sp</dimen>
+    <dimen name="size_16">16sp</dimen>
+    <dimen name="size_18">18sp</dimen>
+    <dimen name="size_20">20sp</dimen>
+    <dimen name="size_22">22sp</dimen>
+    <dimen name="size_28">28sp</dimen>
+
+    <dimen name="margin_2">2dp</dimen>
+    <dimen name="margin_4">4dp</dimen>
+    <dimen name="margin_6">6dp</dimen>
+    <dimen name="margin_8">8dp</dimen>
+    <dimen name="margin_10">10dp</dimen>
+    <dimen name="margin_12">12dp</dimen>
+    <dimen name="margin_16">16dp</dimen>
+    <dimen name="margin_32">32dp</dimen>
+
+    <dimen name="padding_0">0dp</dimen>
+    <dimen name="padding_4">4dp</dimen>
+    <dimen name="padding_6">6dp</dimen>
+    <dimen name="padding_8">8dp</dimen>
+    <dimen name="padding_10">10dp</dimen>
+    <dimen name="padding_12">12dp</dimen>
+    <dimen name="padding_14">14dp</dimen>
+    <dimen name="padding_16">16dp</dimen>
+    <dimen name="padding_18">18dp</dimen>
+    <dimen name="padding_20">20dp</dimen>
+    <dimen name="padding_24">24dp</dimen>
+    <dimen name="padding_64">64dp</dimen>
+
+</resources>

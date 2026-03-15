@@ -6,8 +6,8 @@
 
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="@dimen/width_0"
+        android:layout_height="@dimen/height_0"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/captureButton"
         app:layout_constraintStart_toStartOf="parent"
@@ -15,22 +15,22 @@
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/captureButton"
-        android:layout_width="0dp"
+        android:layout_width="@dimen/width_0"
         android:layout_height="wrap_content"
         android:text="@string/start_streaming"
-        android:textSize="18sp"
-        android:layout_margin="16dp"
+        android:textSize="@dimen/size_18"
+        android:layout_margin="@dimen/margin_16"
         app:layout_constraintBottom_toTopOf="@id/backButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/backButton"
-        android:layout_width="0dp"
+        android:layout_width="@dimen/width_0"
         android:layout_height="wrap_content"
         android:text="@string/back"
-        android:textSize="18sp"
-        android:layout_margin="16dp"
+        android:textSize="@dimen/size_18"
+        android:layout_margin="@dimen/margin_16"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>

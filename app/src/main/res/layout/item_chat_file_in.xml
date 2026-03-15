@@ -3,25 +3,25 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="start"
-    android:paddingStart="8dp"
-    android:paddingEnd="24dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:paddingStart="@dimen/padding_8"
+    android:paddingEnd="@dimen/padding_24"
+    android:paddingTop="@dimen/padding_6"
+    android:paddingBottom="@dimen/padding_6">
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxWidth="280dp"
-        android:minWidth="200dp"
+        android:maxWidth="@dimen/maxWidth_280"
+        android:minWidth="@dimen/minWidth_200"
         android:background="@drawable/bg_bubble_in"
         android:orientation="horizontal"
-        android:padding="12dp"
+        android:padding="@dimen/padding_12"
         android:gravity="center_vertical">
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/thumbnail"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
+            android:layout_width="@dimen/width_70"
+            android:layout_height="@dimen/height_70"
             android:layout_marginEnd="12dp"
             android:scaleType="centerCrop"
             android:background="@drawable/bg_thumb"
@@ -40,7 +40,7 @@
                 android:layout_gravity="end"
                 android:text="@string/file_pdf"
                 android:textColor="@android:color/black"
-                android:textSize="15sp"
+                android:textSize="@dimen/size_15"
                 android:maxLines="3"
                 android:ellipsize="end"
                 android:breakStrategy="balanced"/>
@@ -52,24 +52,8 @@
                 android:layout_gravity="end"
                 android:text="@string/_1_2_mb"
                 android:textColor="#666666"
-                android:textSize="13sp"
-                android:layout_marginTop="4dp"/>
-
-<!--            <Button-->
-<!--                android:id="@+id/btnSaveAs"-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="32dp"-->
-<!--                android:text="Save As"-->
-<!--                android:textSize="10sp"-->
-<!--                android:textColor="#333333"-->
-<!--                android:paddingStart="16dp"-->
-<!--                android:paddingEnd="16dp"-->
-<!--                android:layout_marginTop="8dp"-->
-<!--                android:background="@drawable/btn_save_background"-->
-<!--                android:minWidth="0dp"-->
-<!--                android:minHeight="0dp"-->
-<!--                android:layout_gravity="center_horizontal"-->
-<!--                />-->
+                android:textSize="@dimen/size_13"
+                android:layout_marginTop="@dimen/margin_4"/>
 
             </LinearLayout>
 
@@ -80,10 +64,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="start"
-            android:layout_marginTop="2dp"
-            android:layout_marginStart="4dp"
+            android:layout_marginTop="@dimen/margin_2"
+            android:layout_marginStart="@dimen/margin_4"
             android:text="@string/_12_34"
-            android:textSize="11sp"
-            android:textColor="#999999" />
+            android:textSize="@dimen/size_11"
+            android:textColor="@color/grey" />
 
 </LinearLayout>

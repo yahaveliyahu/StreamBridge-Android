@@ -9,18 +9,18 @@
         android:id="@+id/header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp">
+        android:paddingStart="@dimen/padding_12"
+        android:paddingEnd="@dimen/padding_12"
+        android:paddingTop="@dimen/padding_10"
+        android:paddingBottom="@dimen/padding_10">
 
         <!-- Back arrow on the left -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/backButton"
-            android:layout_width="59dp"
+            android:layout_width="@dimen/width_59"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
-            android:padding="8dp"
+            android:padding="@dimen/padding_8"
             android:text="@string/back_browser" />
 
         <!-- Title + status on the right -->
@@ -40,7 +40,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/stream_bridge"
                 android:textStyle="bold"
-                android:textSize="22sp"
+                android:textSize="@dimen/size_22"
                 android:textColor="@color/black"/>
 
             <androidx.appcompat.widget.AppCompatTextView
@@ -48,7 +48,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/desktop_xxxxx"
-                android:textSize="16sp"
+                android:textSize="@dimen/size_16"
                 android:textColor="#2F6DFF"/>
         </LinearLayout>
 
@@ -60,7 +60,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="10dp"
+        android:padding="@dimen/padding_10"
         android:overScrollMode="never"
         android:scrollbars="vertical"/>
 
@@ -69,39 +69,39 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="10dp"
+        android:padding="@dimen/padding_10"
         android:gravity="center_vertical">
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/sendButton"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/width_44"
+            android:layout_height="@dimen/height_44"
             android:background="@drawable/bg_circle_button"
             android:src="@drawable/ic_send"
-            android:padding="10dp"
+            android:padding="@dimen/padding_10"
             android:contentDescription="@string/send"/>
 
         <androidx.appcompat.widget.AppCompatEditText
             android:id="@+id/messageEditText"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/height_44"
             android:layout_weight="1"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="@dimen/margin_10"
             android:background="@drawable/bg_message_input"
             android:hint="@string/messageBox"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
+            android:paddingStart="@dimen/padding_12"
+            android:paddingEnd="@dimen/padding_12"
             android:inputType="textMultiLine"
             android:maxLines="3"/>
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/plusButton"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:layout_marginStart="10dp"
+            android:layout_width="@dimen/width_44"
+            android:layout_height="@dimen/height_44"
+            android:layout_marginStart="@dimen/margin_10"
             android:background="@drawable/bg_circle_button"
             android:src="@drawable/ic_plus"
-            android:padding="10dp"
+            android:padding="@dimen/padding_10"
             android:contentDescription="@string/attach"/>
     </LinearLayout>
 

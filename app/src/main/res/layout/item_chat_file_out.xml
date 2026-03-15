@@ -4,20 +4,20 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="end"
-    android:paddingStart="24dp"
-    android:paddingEnd="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:paddingStart="@dimen/padding_24"
+    android:paddingEnd="@dimen/padding_8"
+    android:paddingTop="@dimen/padding_6"
+    android:paddingBottom="@dimen/padding_6">
 
     <!-- File bubble -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxWidth="280dp"
-        android:minWidth="200dp"
+        android:maxWidth="@dimen/maxWidth_280"
+        android:minWidth="@dimen/minWidth_200"
         android:orientation="horizontal"
         android:background="@drawable/bg_bubble_out"
-        android:padding="12dp"
+        android:padding="@dimen/padding_12"
         android:gravity="center_vertical">
 
         <LinearLayout
@@ -32,7 +32,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/file_pdf_out"
                 android:textColor="@android:color/white"
-                android:textSize="15sp"
+                android:textSize="@dimen/size_15"
                 android:maxLines="3"
                 android:ellipsize="end"
                 android:breakStrategy="balanced"/>
@@ -44,32 +44,16 @@
                 android:layout_gravity="end"
                 android:text="@string/_1_2_mb_out"
                 android:textColor="#DDEBFF"
-                android:textSize="13sp"
-                android:layout_marginTop="4dp"/>
-
-<!--            <Button-->
-<!--                android:id="@+id/btnSaveAs"-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="32dp"-->
-<!--                android:text="Save As"-->
-<!--                android:textSize="10sp"-->
-<!--                android:textColor="@android:color/white"-->
-<!--                android:paddingStart="16dp"-->
-<!--                android:paddingEnd="16dp"-->
-<!--                android:layout_marginTop="8dp"-->
-<!--                android:background="@drawable/btn_save_background_incoming"-->
-<!--                android:minWidth="0dp"-->
-<!--                android:minHeight="0dp"-->
-<!--                android:layout_gravity="center_horizontal"-->
-<!--                />-->
+                android:textSize="@dimen/size_13"
+                android:layout_marginTop="@dimen/margin_4"/>
 
         </LinearLayout>
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/thumbnail"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:layout_marginStart="12dp"
+            android:layout_width="@dimen/width_70"
+            android:layout_height="@dimen/height_70"
+            android:layout_marginStart="@dimen/margin_12"
             android:scaleType="centerCrop"
             android:background="@drawable/bg_thumb"
             android:src="@drawable/ic_file"
@@ -77,16 +61,15 @@
 
     </LinearLayout>
 
-
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/messageTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:layout_marginTop="2dp"
-        android:layout_marginEnd="4dp"
+        android:layout_marginTop="@dimen/margin_2"
+        android:layout_marginEnd="@dimen/margin_4"
         android:text="@string/_12_34_out"
-        android:textSize="11sp"
-        android:textColor="#999999" />
+        android:textSize="@dimen/size_11"
+        android:textColor="@color/grey" />
 
 </LinearLayout>

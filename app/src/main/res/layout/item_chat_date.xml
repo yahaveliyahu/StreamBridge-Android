@@ -3,18 +3,18 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center"
-    android:padding="8dp">
+    android:padding="@dimen/padding_8">
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/dateText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingStart="12dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="4dp"
+        android:paddingStart="@dimen/padding_12"
+        android:paddingTop="@dimen/padding_4"
+        android:paddingEnd="@dimen/padding_12"
+        android:paddingBottom="@dimen/padding_4"
         android:text="@string/date"
         android:textColor="#555555"
-        android:textSize="12sp"
+        android:textSize="@dimen/size_12"
         android:textStyle="bold"/>
 </LinearLayout>

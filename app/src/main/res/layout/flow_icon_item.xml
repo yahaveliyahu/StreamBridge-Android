@@ -1,23 +1,23 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="0dp"
+    android:layout_width="@dimen/width_0"
     android:layout_height="wrap_content"
     android:layout_columnWeight="1"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="@dimen/padding_8">
 
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/icon"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="@dimen/width_56"
+        android:layout_height="@dimen/height_56"
         android:background="@drawable/bg_circle_icon"
-        android:padding="14dp"
+        android:padding="@dimen/padding_14"
         android:src="@drawable/ic_placeholder"/>
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingTop="8dp"
+        android:paddingTop="@dimen/padding_8"
         android:text="@string/label"/>
 </LinearLayout>

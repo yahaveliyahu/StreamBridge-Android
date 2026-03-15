@@ -3,16 +3,16 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="end"
-    android:paddingStart="64dp"
-    android:paddingEnd="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:paddingStart="@dimen/padding_64"
+    android:paddingEnd="@dimen/padding_8"
+    android:paddingTop="@dimen/padding_6"
+    android:paddingBottom="@dimen/padding_6">
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_bubble_out"
-        android:padding="12dp"
+        android:padding="@dimen/padding_12"
         android:orientation="vertical">
 
         <androidx.appcompat.widget.AppCompatTextView
@@ -20,9 +20,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/example_message_out"
-            android:textSize="16sp"
+            android:textSize="@dimen/size_16"
             android:textColor="@android:color/white"
-            android:maxWidth="260dp" />
+            android:maxWidth="@dimen/maxWidth_260" />
 
     </LinearLayout>
 
@@ -31,10 +31,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
-            android:layout_marginTop="2dp"
-            android:layout_marginEnd="4dp"
+            android:layout_marginTop="@dimen/margin_2"
+            android:layout_marginEnd="@dimen/margin_4"
             android:text="@string/_12_34_text_out"
-            android:textSize="11sp"
-            android:textColor="#999999" />
+            android:textSize="@dimen/size_11"
+            android:textColor="@color/grey" />
 
 </LinearLayout>

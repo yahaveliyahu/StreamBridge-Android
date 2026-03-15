@@ -2,15 +2,15 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="end"
-    android:padding="6dp">
+    android:padding="@dimen/padding_6">
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/messageText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_bubble_blue"
-        android:padding="12dp"
+        android:padding="@dimen/padding_12"
         android:text="@string/example_message"
         android:textColor="#FFFFFF"
-        android:textSize="16sp"/>
+        android:textSize="@dimen/size_16"/>
 </LinearLayout>

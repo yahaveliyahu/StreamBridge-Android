@@ -2,92 +2,92 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="@dimen/padding_16"
     android:gravity="center_horizontal">
 
     <androidx.appcompat.widget.AppCompatTextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/streambridge"
-        android:textSize="28sp"
+        android:textSize="@dimen/size_28"
         android:textStyle="bold"
-        android:layout_marginTop="32dp"
-        android:layout_marginBottom="32dp"/>
+        android:layout_marginTop="@dimen/margin_32"
+        android:layout_marginBottom="@dimen/margin_32"/>
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/statusText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/status_stopped_main"
-        android:textSize="20sp"
-        android:layout_marginBottom="16dp"/>
+        android:textSize="@dimen/size_20"
+        android:layout_marginBottom="@dimen/margin_16"/>
 
     <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/ipAddressText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/ip_address"
-        android:textSize="16sp"
-        android:layout_marginBottom="32dp"/>
+        android:textSize="@dimen/size_16"
+        android:layout_marginBottom="@dimen/margin_32"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/startServerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/start_server"
-        android:textSize="18sp"
-        android:layout_marginBottom="16dp"/>
+        android:textSize="@dimen/size_18"
+        android:layout_marginBottom="@dimen/margin_16"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/stopServerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/stop_server"
-        android:textSize="18sp"
+        android:textSize="@dimen/size_18"
         android:enabled="false"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="@dimen/margin_16"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/scanQRButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/scan_qr_code_to_connect"
-        android:textSize="18sp"
+        android:textSize="@dimen/size_18"
         android:enabled="false"
-        android:layout_marginBottom="32dp"/>
+        android:layout_marginBottom="@dimen/margin_32"/>
 
     <androidx.appcompat.widget.AppCompatTextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/features"
-        android:textSize="20sp"
+        android:textSize="@dimen/size_20"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="@dimen/margin_16"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/cameraButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/camera_streaming_live"
-        android:textSize="18sp"
+        android:textSize="@dimen/size_18"
         android:enabled="false"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="@dimen/margin_16"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/filesButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/data_migration_chat"
-        android:textSize="18sp"
+        android:textSize="@dimen/size_18"
         android:enabled="false"/>
 
     <androidx.appcompat.widget.AppCompatTextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/_1_start_the_server_n2_on_pc_scan_qr_code_or_it_will_auto_discover"
-        android:textSize="12sp"
+        android:textSize="@dimen/size_12"
         android:gravity="center"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="@dimen/margin_32"
         android:alpha="0.7"/>
 
 </LinearLayout>
