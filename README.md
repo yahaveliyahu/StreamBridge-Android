@@ -23,6 +23,35 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ---
 
+## 🧠 Highlights & Mechanics
+
+- **Client–Server Architecture**
+  - Android phone acts as the **secure server**
+  - Windows desktop application acts as the **client**
+
+- **Secure Communication Pipeline**
+  1. Client connects via HTTPS
+  2. WebSocket secure (WSS) channel established
+  3. Authentication using ECDSA
+  4. Key exchange using ECDHE
+  5. Messages encrypted using AES-256-GCM
+
+- **TOFU Pairing Model**
+  - First connection stores the peer public key
+  - Future connections verify the stored key
+  - Any key change is treated as suspicious
+
+### Use Cases
+
+- **Live Camera Streaming**
+  - Implemented using **CameraX**
+  - Frames transmitted in real-time over WebSocket
+- **Securely transfer files** (audio files, documents, photos, videos, contacts and Samsung notes) from phone to computer and vice versa
+- Real-time phone–PC communication
+- **Remote photo capture** from desktop
+
+---
+
 ## Architecture
 
 StreamBridge uses a **client–server architecture over LAN** — no internet connection or cloud service required.
@@ -45,18 +74,44 @@ PC (Windows client):
 
 ## Security
 
-StreamBridge is designed with security in mind.
+StreamBridge is designed with strong security principles.
 
-## Cryptography
+### Transport Security
 
-- All communication is encrypted using **TLS**
-- Key exchange is performed using **ECDHE**
-- Authentication is performed using **ECDSA**
-- Messages and data are protected with **AES-256-GCM**
-- Pairing model: **TOFU (Trust On First Use)**
-On first connection the PC receives the phone's self-signed certificate and pins it locally
-Every subsequent connection verifies against the pinned certificate — a rogue device on the network cannot impersonate the phone
-Pairing is initiated either by scanning a QR code or via an Auto-Discover prompt that requires explicit acceptance on the phone
+All communication occurs over **HTTPS and WSS** and encrypted using **TLS**.
+
+This ensures:
+
+- encrypted communication
+- message integrity
+- protection from man-in-the-middle attacks
+
+### Authentication
+
+Authentication is performed using **ECDSA**
+
+### Key exchange
+
+Key exchange is performed using **ECDHE**
+
+### Data Encryption
+
+Sensitive data is protected with **AES-256-GCM**, providing:
+
+- strong encryption
+- authenticated encryption
+- tamper protection
+
+### Pairing model
+
+StreamBridge uses **TOFU (Trust On First Use)**.
+
+This means:
+
+- On first connection the PC receives the phone's self-signed certificate and pins it locally
+- Every subsequent connection verifies against the pinned certificate — a rogue device on the network cannot impersonate the phone
+- Pairing is initiated either by scanning a QR code or via an Auto-Discover prompt that requires explicit acceptance on the phone
+- This model is similar to how **SSH** works.
 
 ---
 
@@ -77,6 +132,61 @@ Pairing is initiated either by scanning a QR code or via an Auto-Discover prompt
 
 ---
 
+## Watch the App in Action
+
+▶️ **Demo video:** *(add soon)*
+
+---
+
+## 📂 Project Structure
+
+app/
+├── src/
+│ └── main/
+│ ├── AndroidManifest.xml
+│ ├── java/dev/streambridge/
+│ │
+│ │ ├── MainActivity.kt
+│ │ ├── StreamBridgeService.kt
+│ │
+│ │ ├── server/
+│ │ │ ├── HttpServer.kt
+│ │ │ ├── WebSocketHandler.kt
+│ │ │
+│ │ ├── camera/
+│ │ │ ├── CameraController.kt
+│ │ │ └── CameraStreamer.kt
+│ │ │
+│ │ ├── messaging/
+│ │ │ └── MessageHandler.kt
+│ │ │
+│ │ ├── transfer/
+│ │ │ └── FileTransferManager.kt
+│ │ │
+│ │ └── security/
+│ │ ├── TLSManager.kt
+│ │ ├── ECDSAAuth.kt
+│ │ └── CryptoUtils.kt
+│ │
+│ └── res/
+│ ├── layout/
+│ ├── drawable/
+│ └── values/
+│
+├── build.gradle.kts
+├── settings.gradle.kts
+└── gradle.properties
+
+---
+
+## 📸 Screenshots
+
+| Server Screen | Streaming Example |
+|---|---|
+| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/stream.jpg" width="260"> |
+
+---
+
 ## First-time pairing
 
 1. Start the StreamBridge app on your phone — the server starts automatically
@@ -84,15 +194,6 @@ Pairing is initiated either by scanning a QR code or via an Auto-Discover prompt
 2. On the Windows client, click **Show QR Code** and scan it with the phone, or click **Auto-Discover Devices**
 
 3. Accept the connection prompt on the phone — the certificate is pinned and all future connections are automatic
-
----
-
-## Use Cases
-
-- Remote camera monitoring
-- Secure file transfer from phone to PC
-- Real-time phone–PC communication
-- Remote photo capture from desktop
 
 ---
 
