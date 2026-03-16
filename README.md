@@ -11,7 +11,7 @@ The phone acts as a secure server that allows the PC client to connect and inter
 - 💬 **Real-time messaging** between phone and PC
 - 📁 **File transfer** from phone to PC
 - 📸 **Instant remote photo capture**
-- 🔒 **Secure communication over HTTPS and WSS**
+- 🔒 **Secure communication over HTTPS (port 8080) and Websocket secure (port 8081)**
 - 🔐 **Strong encryption**
   - TLS 1.3
   - ECDHE Used for key exchange — generates the session encryption keys and Provides forward secrecy — new keys per session
