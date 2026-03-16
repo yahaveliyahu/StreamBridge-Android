@@ -1,29 +1,23 @@
 package dev.yahaveliyahu.streambridge
 
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import org.json.JSONObject
 import java.io.File
-
-
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.net.nsd.NsdManager
 
 
 class StreamBridgeService : Service() {
 
     companion object {
         private const val TAG = "StreamBridgeService"
-        private const val SERVICE_NAME = "StreamBridge"
-        private const val SERVICE_TYPE = "_phonepclink._tcp."
 
         // actions
         const val ACTION_START = "dev.yahaveliyahu.streambridge.action.START"
@@ -49,11 +43,9 @@ class StreamBridgeService : Service() {
                 ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
     }
 
-    // ✅ שים לב: משתמשים ב-applicationContext כדי לא להחזיק Activity
+    // Using applicationContext to not have an Activity
     private lateinit var serverManager: ServerManager
     private lateinit var discoveryService: DiscoveryService
-    private var nsdManager: NsdManager? = null
-    private var registrationListener: NsdManager.RegistrationListener? = null
 
     // ─────────── Lifecycle ───────────
 
@@ -77,7 +69,6 @@ class StreamBridgeService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startServersIfNeeded()
-//                updateNotification("Running")
             ACTION_STOP -> {
                 stopServers()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -87,15 +78,15 @@ class StreamBridgeService : Service() {
             ACTION_SEND_LOCAL_FILE -> {
                 val path = intent.getStringExtra(EXTRA_LOCAL_PATH)
                 if (!path.isNullOrBlank()) {
-                    startServersIfNeeded() // אם עוד לא רצים, נרים
+                    startServersIfNeeded() // If we're not running yet, let's lift.
                     sendLocalFile(path)
                 }
             }
 
-            // אם ה-Service עלה בלי action
+            // If the Service came up without action
             else -> startServersIfNeeded()
             }
-        // ✅ חשוב: אם המערכת תהרוג – תחזיר ותרים מחדש
+        // If the system kills – return and re-launch
         return START_STICKY
     }
 
@@ -152,7 +143,6 @@ class StreamBridgeService : Service() {
 
             try {
                 serverManager.startServer()
-                // לפי מה שהיה אצלך במיין: discovery
                 val ip = getLocalIp()
                 discoveryService.startDiscovery(ip, 8080)
                 updateNotification("Connected – $ip:8080")
@@ -169,23 +159,15 @@ class StreamBridgeService : Service() {
         java.net.NetworkInterface.getNetworkInterfaces().asSequence()
             .flatMap { it.inetAddresses.asSequence() }
             .firstOrNull { !it.isLoopbackAddress && it is java.net.Inet4Address }
-            ?.hostAddress ?: NetworkUtils.getWifiIp(this)
-    } catch (_: Exception) { NetworkUtils.getWifiIp(this) }
-
-//    private fun sendLocalFile(path: String) {
-//        val f = File(path)
-//        if (!f.exists()) {
-//            Log.e(TAG, "File not found: $path")
-//            return
-//        }
+            ?.hostAddress ?: NetworkUtils.getWifiIp()
+    } catch (_: Exception) { NetworkUtils.getWifiIp() }
 
     // ─────────── Notification ───────────
 
     private fun buildNotification(status: String): Notification {
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
-            (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
-                    or PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("StreamBridge")
@@ -202,43 +184,8 @@ class StreamBridgeService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "StreamBridge Background Service", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "StreamBridge Background Service", NotificationManager.IMPORTANCE_LOW)
+        )
     }
 }
-
-//    private fun createNotificationChannel() {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-//            val channel = NotificationChannel(
-//                CHANNEL_ID,
-//                "StreamBridge Background Service",
-//                NotificationManager.IMPORTANCE_LOW
-//            )
-//            nm.createNotificationChannel(channel)
-//        }
-//    }
-//}
-
-//    // ✅ פה אתה מחבר ללוגיקה שלך לשידור למחשב.
-//        // אם אצלך השידור מתבצע דרך serverManager / websocketServer וכו'
-//        // דוגמה: serverManager.sendFileToPC(f, mime)
-//        val mime = MimeUtils.getMimeTypeFromName(f.name) ?: "application/octet-stream"
-//
-//        try {
-//            // תחליף לשם הפונקציה האמיתית שיש אצלך
-//            serverManager.sendFileToPC(f, mime)
-//            Log.d(TAG, "Sent file to PC: ${f.name} ($mime)")
-//        } catch (e: Exception) {
-//            Log.e(TAG, "sendLocalFile error", e)
-//        }
-//    }
-
-
-
-
-
-

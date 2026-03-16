@@ -1,8 +1,6 @@
 package dev.yahaveliyahu.streambridge
 
-import android.R.attr.bitmap
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
@@ -159,36 +157,6 @@ class CameraActivity : AppCompatActivity() {
                 out
             )
 
-//            // Get rotation and apply it if needed
-//            val rotation = imageProxy.imageInfo.rotationDegrees
-//
-//            val finalBytes = if (rotation != 0) {
-//                // Decode JPEG to Bitmap
-//                val tempBitmap = BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size())
-//
-//                // Rotate bitmap
-//                val matrix = android.graphics.Matrix()
-//                matrix.postRotate(rotation.toFloat())
-//                val rotatedBitmap = Bitmap.createBitmap(
-//                    tempBitmap, 0, 0,
-//                    tempBitmap.width, tempBitmap.height,
-//                    matrix, true
-//                )
-//
-//                // Re-compress to JPEG
-//                val rotatedOut = ByteArrayOutputStream()
-//                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, rotatedOut)
-//
-//                // Clean up
-//                tempBitmap.recycle()
-//                rotatedBitmap.recycle()
-//
-//                rotatedOut.toByteArray()
-//            } else {
-//                out.toByteArray()
-//            }
-
-
             ServerManager.currentCameraFrame = out.toByteArray()
             Log.d("CameraActivity", "Frame saved: ${ServerManager.currentCameraFrame?.size} bytes")
 
@@ -197,17 +165,15 @@ class CameraActivity : AppCompatActivity() {
         }
     }
 
-
-
     private fun startStreaming() {
         isStreaming = true
-        captureButton.text = "Stop Streaming"
+        captureButton.setText(R.string.stop_streaming)
         Toast.makeText(this, "Streaming started - PC can now view camera", Toast.LENGTH_SHORT).show()
     }
 
     private fun stopStreaming() {
         isStreaming = false
-        captureButton.text = "Start Streaming"
+        captureButton.setText(R.string.start_streaming)
         ServerManager.currentCameraFrame = null
         Toast.makeText(this, "Streaming stopped", Toast.LENGTH_SHORT).show()
     }

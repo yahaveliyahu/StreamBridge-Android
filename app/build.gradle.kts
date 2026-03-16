@@ -67,4 +67,6 @@ dependencies {
 
     // Network Service Discovery
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 }

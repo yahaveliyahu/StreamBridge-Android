@@ -49,7 +49,7 @@ import androidx.appcompat.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 
-import android.media.ExifInterface
+import androidx.exifinterface.media.ExifInterface
 import android.graphics.Matrix
 import android.graphics.Bitmap
 
@@ -91,14 +91,10 @@ class FileBrowserActivity : AppCompatActivity() {
                             // Getting the computer name
                             val pcName = json.optString("name", "PC")
                             // Persist so FileBrowserActivity always shows the real name on next open
-//                            getSharedPreferences("conn", MODE_PRIVATE)
-//                                .edit().putString("pc_name", pcName).apply()
                             statusText.text = getString(R.string.connected_to, pcName)
                         }
                         "FILE_RECEIVED" -> {
 
-//                    val type = json.getString("type")
-//                    if (type == "FILE_RECEIVED") {
                             // File uploaded from computer to phone
                             val fileName = json.getString("name")
                             val path = json.getString("path")
@@ -141,25 +137,6 @@ class FileBrowserActivity : AppCompatActivity() {
         }
     }
 
-//                        addMessage(ChatItem.FileItem(
-//                            name = fileName,
-//                            localPath = path,
-//                            sizeBytes = f.length(),
-//                            mimeType = "application/octet-stream",
-//                            isOutgoing = false
-//                        ))
-//                    } else {
-//                        // A regular text message from your computer
-//                        val text = json.optString("text")
-//                        addMessage(ChatItem.Text(text = text, isOutgoing = false))
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            }
-//        }
-//    }
-
     // Contact permission
     private val requestContactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (!granted) Toast.makeText(this, "Need contacts permission", Toast.LENGTH_SHORT).show()
@@ -168,19 +145,19 @@ class FileBrowserActivity : AppCompatActivity() {
 
     // ================== Pickers ==================
 
-    // ✅ Image picker
+    // Image picker
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent())
     { uri: Uri? -> uri?.let { handlePickedUri(it) }}
 
-    // ✅ Video picker
+    // Video picker
     private val pickVideoLauncher = registerForActivityResult(ActivityResultContracts.GetContent())
     { uri: Uri? -> uri?.let { handlePickedUri(it) }}
 
-    // ✅ Files picker (documents)
+    // Files picker (documents)
     private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument())
     { uri: Uri? -> uri?.let { handlePickedUri(it) }}
 
-    // ✅ Audio
+    // Audio
     private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument())
     { uri: Uri? -> uri?.let { handlePickedUri(it) }}
 
@@ -202,25 +179,6 @@ class FileBrowserActivity : AppCompatActivity() {
         handlePickedUri(latestTmpUri!!)
     }
 
-
-
-//    private val cameraLauncher =
-//        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-//            val filePath = result.data?.getStringExtra("captured_path")
-//            if (!filePath.isNullOrBlank()) {
-//                val f = File(filePath)
-//                // Converts the file from the camera to a ChatItem
-//                val item = ChatItem.FileItem(
-//                    name = f.name,
-//                    localPath = f.absolutePath,
-//                    sizeBytes = f.length(),
-//                    mimeType = "image/jpeg",
-//                    isOutgoing = true
-//                )
-//                addMessage(item)
-//            }
-//        }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_file_browser)
@@ -239,8 +197,6 @@ class FileBrowserActivity : AppCompatActivity() {
             startActivity(i)
             finish()
         }
-
-//            ?: getSharedPreferences("conn", MODE_PRIVATE).getString("pc_name", null)
 
         // Connected status: prefer the live static field (populated by the latest HANDSHAKE),
         // then fall back to SharedPreferences, then show "Not connected to the computer".
@@ -272,7 +228,6 @@ class FileBrowserActivity : AppCompatActivity() {
             chatMessageReceiver, IntentFilter("STREAMBRIDGE_CHAT_EVENT")
         )
         // Pick up any items added to history while the activity was in the background
-        // (e.g. a file shared via Samsung Notes / My Files / Contacts while we were paused).
         loadNewHistoryItems()
     }
 
@@ -306,17 +261,8 @@ class FileBrowserActivity : AppCompatActivity() {
             put("timestamp", timestamp)
         }
         ServerManager.sendToPC(json.toString())
+        saveHistory()
     }
-
-//        messageEditText.setText("")
-//        messages.add(ChatItem.Text(text = text, isOutgoing = true))
-//        val json = JSONObject().apply {
-//            put("text", text)
-//            put("type", "TEXT")
-//            put("timestamp", System.currentTimeMillis())
-//        }
-//        ServerManager.sendToPC(json.toString())
-//    }
 
     private fun addMessage(item: ChatItem) {
         val lastMsg = messages.lastOrNull()
@@ -345,7 +291,6 @@ class FileBrowserActivity : AppCompatActivity() {
         try {
             // Safe filename (including cases where there is no DISPLAY_NAME)
             var fileName = getFileName(uri) ?: "file_${System.currentTimeMillis()}"
-//            val fileSize = destFile.length()
             // Safe MIME (audio/image/anything)
             val mime = contentResolver.getType(uri) ?: "application/octet-stream"
 
@@ -395,14 +340,13 @@ class FileBrowserActivity : AppCompatActivity() {
             val json = JSONObject().apply {
                 put("type", "FILE_TRANSFER")
                 put("fileName", finalName)
-//                put("fileName", fileName)
                 put("fileSize", fileSize)
                 put("mimeType", mime)
                 put("downloadPath", "/files/shared/$finalName")
-//                put("downloadPath", "/files/shared/$fileName")
                 put("timestamp", System.currentTimeMillis())
             }
             ServerManager.sendToPC(json.toString())
+            saveHistory()
 
             Toast.makeText(this, "Sent: $fileName", Toast.LENGTH_SHORT).show()
 
@@ -410,26 +354,6 @@ class FileBrowserActivity : AppCompatActivity() {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
-
-//            Toast.makeText(this, "selected: $fileName", Toast.LENGTH_SHORT).show()
-//            val json = JSONObject().apply {
-//                put("type", "FILE_TRANSFER")
-//                put("fileName", fileName)
-//                put("fileSize", fileSize)
-//                put("mimeType", mime)
-//                put("downloadPath", "/files/shared/$fileName")
-//                put("timestamp", System.currentTimeMillis())
-//            }
-//            ServerManager.sendToPC(json.toString())
-
-//            ServerManager.sendFileToPC(destFile, mime)
-//
-//            Toast.makeText(this, "Sent file request to PC", Toast.LENGTH_SHORT).show()
-//
-//        } catch (e: Exception) {
-//            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-//        }
-//    }
 
     private fun uniqueFileInDir(dir: File, originalName: String): File {
         val dotIndex = originalName.lastIndexOf('.')
@@ -452,8 +376,6 @@ class FileBrowserActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val container = FrameLayout(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_attach_flow, container, false)
-
-//        val view = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_attach_flow, null)
 
         view.findViewById<View>(R.id.optGallery)?.setOnClickListener {
             dialog.dismiss(); pickImageLauncher.launch("image/*")
@@ -559,7 +481,7 @@ class FileBrowserActivity : AppCompatActivity() {
                     )
                 )
 
-                // Send the contact VCF to the PC (was previously missing!)
+                // Send the contact VCF to the PC
                 val json = JSONObject().apply {
                     put("type",         "FILE_TRANSFER")
                     put("fileName",     fileName)
@@ -569,6 +491,7 @@ class FileBrowserActivity : AppCompatActivity() {
                     put("timestamp",    timestamp)
                 }
                 ServerManager.sendToPC(json.toString())
+                saveHistory()
                 Toast.makeText(this, "Contact sent: $displayName", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
@@ -671,48 +594,11 @@ class FileBrowserActivity : AppCompatActivity() {
         }
     }
 
-
-
-//    private fun saveHistory() {
-//        val jsonArray = JSONArray()
-//        messages.forEach { msg ->
-//            if (msg !is ChatItem.DateHeader) {
-//                val obj = JSONObject()
-//                when (msg) {
-//                    is ChatItem.Text -> {
-//                        obj.put("type", "TEXT"); obj.put("text", msg.text); obj.put(
-//                            "out",
-//                            msg.isOutgoing
-//                        ); obj.put("time", msg.timestamp)
-//                    }
-//
-//                    is ChatItem.FileItem -> {
-//                        obj.put("type", "FILE"); obj.put("name", msg.name); obj.put(
-//                            "path",
-//                            msg.localPath
-//                        ); obj.put("size", msg.sizeBytes); obj.put(
-//                            "mime",
-//                            msg.mimeType
-//                        ); obj.put("out", msg.isOutgoing); obj.put("time", msg.timestamp)
-//                    }
-//
-//                    else -> {}
-//                }
-//                jsonArray.put(obj)
-//            }
-//        }
-////        historyPrefs.edit().putString("history", jsonArray.toString()).apply()
-//        historyPrefs.edit {
-//            putString("history", jsonArray.toString())
-//        }
-//    }
-
     private fun saveHistory() {
         val cutoff = historyCutoffMillis()
         val jsonArray = JSONArray()
 
         messages.forEach { msg ->
-//            if (msg is ChatItem.DateHeader) return@forEach
             if (msg.timestamp < cutoff) return@forEach  // Actually erases old history
 
             val obj = JSONObject()
@@ -806,19 +692,6 @@ class FileBrowserActivity : AppCompatActivity() {
         }
         latestTimestampLoaded = newLatest
     }
-
-
-
-//    private fun getFileSize(uri: Uri): Long {
-//        var size = 0L
-//        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-//            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-//            if (sizeIndex >= 0 && cursor.moveToFirst()) {
-//                size = cursor.getLong(sizeIndex)
-//            }
-//        }
-//        return size
-//    }
 
     private fun launchCamera() {
         try {
@@ -989,19 +862,11 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         }
     }
 
-
-//    class TextVH(view: View) : RecyclerView.ViewHolder(view) {
-//        private val tv: TextView = view.findViewById(R.id.messageText)
-//        fun bind(item: ChatItem.Text) { tv.text = item.text }
-//    }
-
     class FileVH(view: View) : RecyclerView.ViewHolder(view) {
         private val nameTv: TextView = view.findViewById(R.id.fileName)
         private val metaTv: TextView = view.findViewById(R.id.fileMeta)
         private val thumb: ImageView = view.findViewById(R.id.thumbnail)
         private val timeTv: TextView? = view.findViewById(R.id.messageTime)
-//        private val btnSaveAs: Button? = view.findViewById(R.id.btnSaveAs)
-
 
         fun bind(item: ChatItem.FileItem, ctx: Context) {
             nameTv.text = item.name
@@ -1011,18 +876,12 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
             // Clear tint for images, restore for files
             if (item.mimeType.startsWith("image/")) {
                 loadImage(item.localPath)
-//                thumb.setImageURI(Uri.fromFile(File(item.localPath)))
             } else {
                 // Restore white tint for non-image files
                 thumb.imageTintList = ColorStateList.valueOf(android.graphics.Color.WHITE)
                 thumb.setImageResource(R.drawable.ic_file)
                 thumb.clearColorFilter()
             }
-
-            // Save button click handler
-//            btnSaveAs?.setOnClickListener {
-//                saveToDownloads(item, ctx)
-//            }
 
             // Click thumbnail or message to open file
             val openClickListener = View.OnClickListener {
@@ -1196,7 +1055,6 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
 
         // Show dialog for custom filename
         private fun showSaveDialog(item: ChatItem.FileItem, ctx: Context) {
-//            val dialogView = LayoutInflater.from(ctx).inflate(android.R.layout.select_dialog_item, null)
             val editText = EditText(ctx).apply {
                 // Pre-fill with current filename (without extension)
                 val nameWithoutExt = if (item.name.contains(".")) {
@@ -1280,28 +1138,6 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
                 Toast.makeText(ctx, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
-        // Generate unique filename with timestamp
-//                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-//                val originalName = item.name
-//                val extension = if (originalName.contains(".")) originalName.substringAfterLast(".") else ""
-//                val nameWithoutExt = if (originalName.contains(".")) originalName.substringBeforeLast(".") else originalName
-//                val destFileName = if (extension.isNotEmpty()) "${nameWithoutExt}_$timestamp.$extension" else "${originalName}_$timestamp"
-//                val destFile = File(streamBridgeDir, destFileName)
-
-        // Copy file
-//                sourceFile.copyTo(destFile, overwrite = true)
-//                // Show success message
-//                Toast.makeText(ctx, "Saved to Downloads/StreamBridge/\n$destFileName", Toast.LENGTH_LONG).show()
-//                Log.d("FileVH", "Saved: ${destFile.absolutePath}")
-//                // Make file visible in file manager
-//                MediaScannerConnection.scanFile( ctx, arrayOf(destFile.absolutePath), null ) { path, uri ->
-//                    Log.d("FileVH", "File scanned: $path")
-//                }
-//            } catch (e: Exception) {
-//                Log.e("FileVH", "❌ Save error: ${e.message}", e)
-//                Toast.makeText(ctx, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
-//            }
-//        }
 
         // Ask user if they want to overwrite existing file
         private fun showOverwriteDialog(sourceFile: File, destFile: File, filename: String, ctx: Context) {
@@ -1384,52 +1220,3 @@ class ChatBubblesAdapter(private val items: List<ChatItem>, private val context:
         }
     }
 }
-
-
-
-
-
-
-
-
-//sealed class ChatItem {
-//    data class Text(
-//        val text: String,
-//        val isOutgoing: Boolean
-//    ) : ChatItem()
-//}
-//
-//class ChatBubblesAdapter(private val items: List<ChatItem>) :
-//    RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-//
-//    private val TYPE_TEXT_OUT = 1
-//    private val TYPE_TEXT_IN = 2
-//
-//    override fun getItemViewType(position: Int): Int {
-//        return when (val item = items[position]) {
-//            is ChatItem.Text -> if (item.isOutgoing) TYPE_TEXT_OUT else TYPE_TEXT_IN
-//        }
-//    }
-//
-//    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-//        val inflater = LayoutInflater.from(parent.context)
-//        return when (viewType) {
-//            TYPE_TEXT_OUT -> TextVH(inflater.inflate(R.layout.item_chat_text_out, parent, false))
-//            else -> TextVH(inflater.inflate(R.layout.item_chat_text_in, parent, false))
-//        }
-//    }
-//
-//    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-//        val item = items[position] as ChatItem.Text
-//        (holder as TextVH).bind(item)
-//    }
-//
-//    override fun getItemCount() = items.size
-//
-//    class TextVH(view: View) : RecyclerView.ViewHolder(view) {
-//        private val tv: TextView = view.findViewById(R.id.messageText)
-//        fun bind(item: ChatItem.Text) {
-//            tv.text = item.text
-//        }
-//    }
-//}

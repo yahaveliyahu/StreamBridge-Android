@@ -20,9 +20,6 @@ import org.json.JSONObject
  *
  * It immediately copies the shared content to the app's private folder and
  * asks StreamBridgeService to send it to the PC over the existing connection.
- *
- * The Activity has no layout – it finishes as soon as the work is queued so the
- * user is returned to the originating app instantly.
  */
 
 class ShareReceiverActivity : AppCompatActivity() {
@@ -36,7 +33,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             Log.e("StreamBridge", "ShareReceiver crash", e)
             Toast.makeText(this, "Failed to import shared file: ${e.message}", Toast.LENGTH_LONG).show()
         } finally {
-            finish() // חשוב: לא להשאיר Activity פתוחה
+            finish()
         }
     }
 
@@ -79,18 +76,8 @@ class ShareReceiverActivity : AppCompatActivity() {
             Toast.makeText(this, "StreamBridge: nothing to share", Toast.LENGTH_SHORT).show()
             return
         }
-//        if (uris.isEmpty()) {
-//            // לפעמים Notes שולח טקסט
-//            val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-//            if (!text.isNullOrBlank()) {
-//                // פה אתה יכול לשלוח טקסט למחשב
-//                // ServerManager / WebSocket וכו'
-//                return
-//            }
-//            return
-//        }
 
-        // ✅ שמירת קבצים לתיקיית shared שלך כדי שתמיד יהיה גישה
+        // Save files to your shared folder so you always have access
         val sharedDir = File(filesDir, "shared").apply { if (!exists()) mkdirs() }
 
         for (uri in uris) {
@@ -102,23 +89,16 @@ class ShareReceiverActivity : AppCompatActivity() {
                 val name = if (rawName.contains('.')) rawName else "$rawName.$ext"
                 val dest = uniqueFileInDir(sharedDir, name)
 
-//                val name = getFileNameSafe(uri) ?: "shared_${System.currentTimeMillis()}"
-
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(dest).use { output -> input.copyTo(output) }
             } ?: throw IllegalStateException("Can't open stream for uri: $uri")
 
-            // מבקשים מה-Service לשדר את הקובץ למחשב (אם יש חיבור)
-                // Ask the service to notify the PC (it handles WebSocket + history)
+                // Ask the service to transmit the file to the computer (if there is a connection)
                 val svc = Intent(this, StreamBridgeService::class.java).apply {
                 action = StreamBridgeService.ACTION_SEND_LOCAL_FILE
                 putExtra(StreamBridgeService.EXTRA_LOCAL_PATH, dest.absolutePath)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(svc)
-                } else {
-                    startService(svc)
-                }
+                startForegroundService(svc)
                 Toast.makeText(this, "StreamBridge: sent ${dest.name}", Toast.LENGTH_SHORT).show()
                 Log.d("ShareReceiver", "Queued: ${dest.absolutePath}")
 

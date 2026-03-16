@@ -35,6 +35,6 @@
             android:layout_marginEnd="@dimen/margin_4"
             android:text="@string/_12_34_text_out"
             android:textSize="@dimen/size_11"
-            android:textColor="@color/grey" />
+            android:textColor="@color/gray" />
 
 </LinearLayout>

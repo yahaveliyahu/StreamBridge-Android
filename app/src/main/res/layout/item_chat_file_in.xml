@@ -68,6 +68,6 @@
             android:layout_marginStart="@dimen/margin_4"
             android:text="@string/_12_34"
             android:textSize="@dimen/size_11"
-            android:textColor="@color/grey" />
+            android:textColor="@color/gray" />
 
 </LinearLayout>

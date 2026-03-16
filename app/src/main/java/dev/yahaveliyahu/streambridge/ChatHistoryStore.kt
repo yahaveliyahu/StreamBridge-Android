@@ -1,6 +1,7 @@
 package dev.yahaveliyahu.streambridge
 
 import android.content.Context
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -13,6 +14,6 @@ object ChatHistoryStore {
         val old = prefs.getString(KEY, "[]") ?: "[]"
         val arr = JSONArray(old)
         arr.put(obj)
-        prefs.edit().putString(KEY, arr.toString()).apply()
+        prefs.edit { putString(KEY, arr.toString()) }
     }
 }

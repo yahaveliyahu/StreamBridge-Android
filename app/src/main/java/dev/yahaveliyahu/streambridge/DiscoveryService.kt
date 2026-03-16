@@ -17,7 +17,7 @@ class DiscoveryService(private val context: Context) {
     private val tag = "DiscoveryService"
 
     // List of IPs trusted via QR Scan
-    private val trustedIps = mutableSetOf<String>()
+//    private val trustedIps = mutableSetOf<String>()
 
     var onPairingRequest: ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
 
@@ -32,10 +32,10 @@ class DiscoveryService(private val context: Context) {
         startPairingServer()
     }
 
-    fun addTrustedIp(ip: String) {
-        trustedIps.add(ip)
-        Log.d(tag, "Added trusted IP: $ip")
-    }
+//    fun addTrustedIp(ip: String) {
+//        trustedIps.add(ip)
+//        Log.d(tag, "Added trusted IP: $ip")
+//    }
 
     private fun registerNsdService(phoneIp: String, phonePort: Int) {
         val serviceInfo = NsdServiceInfo().apply {
@@ -98,16 +98,16 @@ class DiscoveryService(private val context: Context) {
                 Log.d(tag, "Request from $pcName at $pcIp")
 
                 // CHECK TRUST: If scanned via QR, approve immediately!
-                if (trustedIps.contains(pcIp)) {
-                    Log.d(tag, "IP $pcIp is trusted. Auto-approving.")
-                    sendResponse(output, true)
-                    client.close()
-                    // Notify UI just for info
-                    onPairingRequest?.invoke(pcName, pcIp) { /* No-op, already handled */ }
-                    return@thread
-                }
+//                if (trustedIps.contains(pcIp)) {
+//                    Log.d(tag, "IP $pcIp is trusted. Auto-approving.")
+//                    sendResponse(output, true)
+//                    client.close()
+//                    // Notify UI just for info
+//                    onPairingRequest?.invoke(pcName, pcIp) { /* No-op, already handled */ }
+//                    return@thread
+//                }
 
-                // If not trusted, ask user (this is where timeout happened before)
+                // Ask user to approve or deny
                 onPairingRequest?.invoke(pcName, pcIp) { approved ->
                     thread {
                         try {

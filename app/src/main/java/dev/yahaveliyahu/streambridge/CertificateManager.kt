@@ -18,18 +18,15 @@ import javax.net.ssl.SSLContext
  * The certificate is generated once on first run and persists forever.
  * The private key never leaves the secure element — only the public cert bytes
  * are ever shared (during pairing) so Windows can pin to exactly this certificate.
- *
- * Usage: create one instance per component that needs it — all instances share
- * the same underlying Android Keystore entry (KEY_ALIAS).
  */
 class CertificateManager {
 
     companion object {
         private const val TAG = "CertificateManager"
         private const val KEY_ALIAS = "streambridge_tls_v4"
-        private const val OLD_ALIAS3 = "streambridge_tls_v3"
-        private const val OLD_ALIAS2 = "streambridge_tls_v2"
-        private const val OLD_ALIAS = "streambridge_tls"
+//        private const val OLD_ALIAS3 = "streambridge_tls_v3"
+//        private const val OLD_ALIAS2 = "streambridge_tls_v2"
+//        private const val OLD_ALIAS = "streambridge_tls"
         private const val ANDROID_KS = "AndroidKeyStore"
     }
 
@@ -45,19 +42,18 @@ class CertificateManager {
      * Safe to call multiple times — is a no-op after first generation.
      */
     fun ensureCertificate() {
-        // Remove both old RSA keys so the new ECDSA key is used
-        if (keyStore.containsAlias(OLD_ALIAS)) {
-            keyStore.deleteEntry(OLD_ALIAS)
-            Log.d(TAG, "Removed RSA v1 key")
-        }
-        if (keyStore.containsAlias(OLD_ALIAS2)) {
-            keyStore.deleteEntry(OLD_ALIAS2)
-            Log.d(TAG, "Removed RSA v2 key")
-        }
-        if (keyStore.containsAlias(OLD_ALIAS3)) {
-            keyStore.deleteEntry(OLD_ALIAS3)
-            Log.d(TAG, "Removed ECDSA v3 key")
-        }
+//        if (keyStore.containsAlias(OLD_ALIAS)) {
+//            keyStore.deleteEntry(OLD_ALIAS)
+//            Log.d(TAG, "Removed RSA v1 key")
+//        }
+//        if (keyStore.containsAlias(OLD_ALIAS2)) {
+//            keyStore.deleteEntry(OLD_ALIAS2)
+//            Log.d(TAG, "Removed RSA v2 key")
+//        }
+//        if (keyStore.containsAlias(OLD_ALIAS3)) {
+//            keyStore.deleteEntry(OLD_ALIAS3)
+//            Log.d(TAG, "Removed ECDSA v3 key")
+//        }
 
         if (keyStore.containsAlias(KEY_ALIAS)) return
 
@@ -69,22 +65,17 @@ class CertificateManager {
                         KEY_ALIAS,
                         // PURPOSE_SIGN    — used by TLS for certificate signatures
                         // PURPOSE_DECRYPT — needed for TLS 1.2 RSA key-exchange fallback
-                        KeyProperties.PURPOSE_SIGN  // TLS 1.2 (ECDHE/DHE) + TLS 1.3 only need signing
+                        KeyProperties.PURPOSE_SIGN  // TLS 1.2 (ECDHE) + TLS 1.3 only need signing
                     )
                         // P-256 is the standard TLS curve — supported by all JVMs and Android
                         .setAlgorithmParameterSpec(
                             java.security.spec.ECGenParameterSpec("secp256r1")
                         )
-//                        .setKeySize(2048)
                         .setDigests(
                             KeyProperties.DIGEST_NONE,
                             KeyProperties.DIGEST_SHA256,
                             KeyProperties.DIGEST_SHA384,
                             KeyProperties.DIGEST_SHA512)
-//                        .setSignaturePaddings(
-//                            KeyProperties.SIGNATURE_PADDING_RSA_PKCS1,
-//                            KeyProperties.SIGNATURE_PADDING_RSA_PSS)
-//                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)     // Required whenever PURPOSE_DECRYPT is included
                         .setCertificateSubject(javax.security.auth.x500.X500Principal("CN=StreamBridge"))
                         .setCertificateSerialNumber(java.math.BigInteger.ONE)
                         .build()

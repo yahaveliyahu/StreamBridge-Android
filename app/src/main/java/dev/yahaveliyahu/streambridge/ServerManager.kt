@@ -1,9 +1,10 @@
 package dev.yahaveliyahu.streambridge
 
-
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.content.edit
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import fi.iki.elonen.NanoHTTPD
 import org.java_websocket.WebSocket
@@ -25,6 +26,7 @@ class ServerManager(private val context: Context) {
         private const val TAG = "ServerManager"
         var currentCameraFrame: ByteArray? = null
         // Static variable so we can send messages from anywhere (e.g. from the chat)
+        @SuppressLint("StaticFieldLeak")
         var webSocketServer: CommandWebSocketServer? = null
 
         // The hostname of the currently-connected PC, or null when not connected
@@ -33,21 +35,6 @@ class ServerManager(private val context: Context) {
         fun sendToPC(jsonString: String) {
             webSocketServer?.broadcastToAll(jsonString)
         }
-
-        // Sending a valid URL path to a computer for all file types
-        // A function to send a file to a computer in a way that prevents a crash
-        fun sendFileToPC(file: File, mimeType: String) {
-            val json = JSONObject().apply {
-                put("type", "FILE_TRANSFER")
-                put("fileName", file.name)
-                put("fileSize", file.length())
-                put("mimeType", mimeType)
-                // Using a network path (URL) instead of a local path
-                put("downloadPath", "/files/shared/${file.name}")
-                put("timestamp", System.currentTimeMillis())
-            }
-            sendToPC(json.toString())
-        }
     }
 
     // ── Server start / stop ─────────────────────────────────────────────────────
@@ -55,50 +42,37 @@ class ServerManager(private val context: Context) {
     fun startServer() {
         try {
             // Each call creates a fresh CertificateManager — they all share the same
-            // Android Keystore entry so this is cheap and correct.
+            // Android Keystore entry.
             val certManager = CertificateManager()
             val sslContext  = certManager.getSSLContext()   // also calls ensureCertificate()
 
             // ── HTTPS server (port 8080) ──────────────────────────────────────────
+
             httpServer = FileServer(8080, context)
             httpServer?.makeSecure(sslContext.serverSocketFactory, null)
             httpServer?.start()
 
             // ── WSS server (port 8081) ────────────────────────────────────────────
+
             // Passing the Context so we can broadcast messages to the UI
             // Using applicationContext prevents Activity Memory Leak
 
             webSocketServer = CommandWebSocketServer(8081, context.applicationContext)
 
-            // The onServerError callback fires when the SERVER thread itself crashes
-            // (e.g. BindException).  We schedule a full restart so port 8081 never
-            // stays in a zombie state where it accepts TCP SYNs but hangs TLS.
-//            webSocketServer = CommandWebSocketServer(
-//                port = 8081,
-//                context = context.applicationContext,
-//                onServerError = { ex ->
-//                    Log.e(TAG, "WSS server crashed — restarting in 2 s", ex)
-//                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-//                        restartWssServer(sslContext)
-//                    }, 2_000)
-//                }
-//            )
+            // The onServerError callback fires when the SERVER thread itself crashes.
+            // We schedule a full restart so port 8081 never stays in a zombie state
+            // where it accepts TCP SYNs but hangs TLS.
+
             webSocketServer?.isReuseAddr = true   // allow rebind while old socket is in TIME_WAIT
 
-//            webSocketServer?.setWebSocketFactory(DefaultSSLWebSocketServerFactory(sslContext))
+            // ────────── TLS factory with handshake watchdog ────────────────────────────────────
 
-            // ── TLS factory with explicit handshake timeout ───────────────────────
-
-            // java-websocket's DefaultSSLWebSocketServerFactory uses NIO + SSLEngine.
-            // In NIO mode, if the TLS ClientHello never reaches the app layer
-            // (e.g. intercepted by the Android network stack on Samsung/Android 15),
-            // the SSLEngine sits in NEED_UNWRAP forever — no exception, no log.
-            //
-            // Fix: use a blocking SSL socket factory instead of NIO.  With blocking
-            // sockets, SSLSocket.soTimeout = 15 000 ms ensures startHandshake()
-            // throws SSLHandshakeException after 15 s, which reaches onError() and
-            // gives us both a log entry and the auto-restart hook.
-//            webSocketServer?.setWebSocketFactory(BlockingSSLWebSocketServerFactory(sslContext, handshakeTimeoutMs = 15_000))
+            // Without a timeout, a client that connects at TCP level but never
+            // sends a TLS ClientHello hangs the SSLEngine silently forever.
+            // HandshakeTimeoutSSLFactory runs a watchdog that forcibly closes
+            // any connection that doesn't complete TLS within 5 seconds.
+            // setWebSocketFactory → wraps incoming sockets with TLS
+            // handshakeFactory → lets onOpen() cancel the watchdog on success
 
             val factory = HandshakeTimeoutSSLFactory(sslContext, handshakeTimeoutMs = 5_000)
             webSocketServer!!.handshakeFactory = factory
@@ -112,40 +86,6 @@ class ServerManager(private val context: Context) {
         }
     }
 
-//    /**
-//     * Tears down and recreates only the WSS server (port 8081).
-//     * Called automatically when onError(conn=null) fires.
-//     * The sslContext is passed in so we don't need to hit the Keystore again.
-//     */
-//    private fun restartWssServer(sslContext: javax.net.ssl.SSLContext) {
-//        try {
-//            Log.d(TAG, "Restarting WSS server…")
-//            webSocketServer?.stop()
-//            webSocketServer = null
-//
-//            webSocketServer = CommandWebSocketServer(
-//                port = 8081,
-//                context = context.applicationContext,
-//                onServerError = { ex ->
-//                    Log.e(TAG, "WSS server crashed again — restarting in 2 s", ex)
-//                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-//                        restartWssServer(sslContext)
-//                    }, 2_000)
-//                }
-//            )
-//            webSocketServer?.isReuseAddr = true
-//
-////            webSocketServer?.setWebSocketFactory(DefaultSSLWebSocketServerFactory(sslContext))
-//
-//            webSocketServer?.setWebSocketFactory(BlockingSSLWebSocketServerFactory(sslContext, handshakeTimeoutMs = 15_000))
-//
-//            webSocketServer?.start()
-//            Log.d(TAG, "WSS server restart initiated")
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Failed to restart WSS server", e)
-//        }
-//    }
-
     fun stopServer() {
         try {
             httpServer?.stop()
@@ -157,8 +97,6 @@ class ServerManager(private val context: Context) {
             Log.e(TAG, "Error stopping servers", e)
         }
     }
-
-//    fun isRunning(): Boolean = httpServer?.isAlive == true
 
     /**
      * Returns true only when BOTH servers are alive.
@@ -197,15 +135,13 @@ class ServerManager(private val context: Context) {
                 // NanoHTTPD requires special parsing for uploads
                 val files = HashMap<String, String>()
                 session.parseBody(files)
-//                val params = session.parameters
-
                 val tempFilePath = files["file"]
                 // Name that comes from the URL: /upload?name=...
                 val encodedNameFromUrl = session.parameters["name"]?.firstOrNull()
                 val fileNameFromUrl = encodedNameFromUrl?.let {
                     try { java.net.URLDecoder.decode(it, "UTF-8") } catch (_: Exception) { it }
                 }
-                // Old fallback: if for some reason there is no name in the URL
+                // if for some reason there is no name in the URL
                 val fileNameFallback = session.parameters["file"]?.firstOrNull()
                 // Final choice
                 val fileName = fileNameFromUrl ?: fileNameFallback ?: "file_${System.currentTimeMillis()}"
@@ -275,13 +211,8 @@ class ServerManager(private val context: Context) {
 
     // ── Blocking SSL WebSocket factory ─────────────────────────────────────────
 
-//    class BlockingSSLWebSocketServerFactory(
-//        private val sslContext: javax.net.ssl.SSLContext,
-//        private val handshakeTimeoutMs: Int = 15_000
-//    ) : DefaultSSLWebSocketServerFactory(sslContext) {
-
     class HandshakeTimeoutSSLFactory(
-        private val sslContext: javax.net.ssl.SSLContext,
+        sslContext: javax.net.ssl.SSLContext,
         private val handshakeTimeoutMs: Long = 15_000
     ) : DefaultSSLWebSocketServerFactory(sslContext) {
 
@@ -329,60 +260,7 @@ class ServerManager(private val context: Context) {
         }
     }
 
-//            // Switch to blocking mode so we can impose a handshake timeout.
-//            channel.configureBlocking(true)
-//
-//            val rawSocket = channel.socket()
-//
-//            // Wrap the raw socket as an SSLSocket (server mode).
-//            val sslSocket = sslContext.socketFactory.createSocket(
-//                rawSocket,
-//                rawSocket.inetAddress?.hostAddress ?: "",
-//                rawSocket.port,
-//                true  // autoClose — close underlying socket when SSLSocket closes
-//            ) as javax.net.ssl.SSLSocket
-//
-//            sslSocket.useClientMode = false
-//
-//            // ── Handshake timeout ─────────────────────────────────────────────────
-//            // Without this, startHandshake() blocks forever if the ClientHello
-//            // is dropped.  With it, SocketTimeoutException is thrown after
-//            // [handshakeTimeoutMs] ms and routed to onError(conn, ex).
-//            sslSocket.soTimeout = handshakeTimeoutMs
-//
-//            try {
-//                sslSocket.startHandshake()
-//            } catch (e: Exception) {
-//                Log.e("ServerManager", "TLS handshake failed from ${rawSocket.inetAddress}: ${e.message}")
-//                sslSocket.close()
-//                throw e  // Let java-websocket call onError(conn, ex)
-//            }
-//
-//            // After a successful handshake, remove the read timeout so normal
-//            // WebSocket traffic can block as long as needed.
-//            sslSocket.soTimeout = 0
-//
-//            // Wrap the SSLSocket's streams as a ByteChannel for java-websocket.
-//            return java.nio.channels.Channels.newChannel(sslSocket.inputStream).let { readable ->
-//                object : java.nio.channels.ByteChannel {
-//                    private val writeCh = java.nio.channels.Channels.newChannel(sslSocket.outputStream)
-//                    override fun read(dst: java.nio.ByteBuffer): Int = readable.read(dst)
-//                    override fun write(src: java.nio.ByteBuffer): Int = writeCh.write(src)
-//                    override fun isOpen(): Boolean = sslSocket.isConnected && !sslSocket.isClosed
-//                    override fun close() { sslSocket.close() }
-//                }
-//            }
-//        }
-
-
     // ================= WEBSOCKET SERVER =================
-//    class CommandWebSocketServer(port: Int, private val context: Context) : WebSocketServer(InetSocketAddress(port)) {
-
-//    class CommandWebSocketServer(port: Int, private val context: Context,
-//        // Called when the SERVER itself errors (conn==null) — e.g. BindException.
-//        // Distinct from a per-connection error.  ServerManager uses this to restart.
-//        private val onServerError: ((Exception) -> Unit)? = null
-//    ) : WebSocketServer(InetSocketAddress(port)) {
 
     class CommandWebSocketServer(
         port: Int,
@@ -415,7 +293,7 @@ class ServerManager(private val context: Context) {
             // Also wipe SharedPreferences so a future Activity open never reads a
             // stale name from a previous session and shows "Connected" incorrectly.
             context.getSharedPreferences("conn", Context.MODE_PRIVATE)
-                .edit().remove("pc_name").apply()
+                .edit { remove("pc_name") }
             LocalBroadcastManager.getInstance(context).sendBroadcast(
                 Intent("STREAMBRIDGE_CHAT_EVENT").apply {
                     putExtra("message", JSONObject().apply {
@@ -425,17 +303,13 @@ class ServerManager(private val context: Context) {
             )
         }
 
-//        override fun onError(conn: WebSocket?, ex: Exception) { Log.e(TAG, "WebSocket error", ex) }
-
         override fun onError(conn: WebSocket?, ex: Exception) {
             if (conn == null) {
-                // ── Server-level error (e.g. BindException on startup) ────────────
                 // The server thread has died.  Port 8081 is now a zombie: the OS
                 // TCP stack may still ACK incoming SYNs but nobody reads the data,
                 // causing Windows to hang for 10 s then time out.
                 Log.e(TAG, "WSS server error (startup/bind failure) — will restart", ex)
                 isStarted = false
-//                onServerError?.invoke(ex)
             } else {
                 // Per-connection error (e.g. stalled TLS channel closed by watchdog,
                 // or client sent malformed data). Log and let the connection close.
@@ -462,7 +336,7 @@ class ServerManager(private val context: Context) {
                     connectedPcName = pcName
                     // Also persist so the Activity can read it after it opens
                     context.getSharedPreferences("conn", Context.MODE_PRIVATE)
-                        .edit().putString("pc_name", pcName).apply()
+                        .edit { putString("pc_name", pcName) }
                 }
             } catch (_: Exception) {}
 

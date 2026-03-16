@@ -1,12 +1,23 @@
 package dev.yahaveliyahu.streambridge
 
-import android.content.Context
-import android.net.wifi.WifiManager
-import android.text.format.Formatter
+import java.net.Inet4Address
+import java.net.NetworkInterface
+
 
 object NetworkUtils {
-    fun getWifiIp(ctx: Context): String {
-        val wifi = ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        return Formatter.formatIpAddress(wifi.connectionInfo.ipAddress)
+    fun getWifiIp(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (networkInterface in interfaces) {
+                for (address in networkInterface.inetAddresses) {
+                    if (!address.isLoopbackAddress && address is Inet4Address) {
+                        return address.hostAddress ?: continue
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return "Unknown"
     }
 }

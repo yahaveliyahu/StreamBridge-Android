@@ -19,9 +19,9 @@ import org.json.JSONObject
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import androidx.camera.core.ExperimentalGetImage
-import kotlin.OptIn
 
 
+@ExperimentalGetImage
 class QRScannerActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var backButton: Button
@@ -88,7 +88,6 @@ class QRScannerActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    @OptIn(ExperimentalGetImage::class)
     private fun processImageProxy(imageProxy: ImageProxy) {
         if (isProcessing) {
             imageProxy.close()

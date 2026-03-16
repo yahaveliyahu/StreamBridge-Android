@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import org.json.JSONObject
 
 
@@ -23,8 +24,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scanQRButton: Button
     private lateinit var cameraButton: Button
     private lateinit var filesButton: Button
-
-
 
     companion object {
         private const val SERVER_PORT = 8080
@@ -101,11 +100,7 @@ class MainActivity : AppCompatActivity() {
         val svcIntent = Intent(this, StreamBridgeService::class.java).apply {
             action = StreamBridgeService.ACTION_START
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(svcIntent)
-        } else {
-            startService(svcIntent)
-        }
+        startForegroundService(svcIntent)
         // Give the service a moment to bind then refresh UI
         startServerButton.postDelayed({ updateUI() }, 500)
         Toast.makeText(this, "Server started", Toast.LENGTH_SHORT).show()
@@ -232,12 +227,21 @@ class MainActivity : AppCompatActivity() {
 
     // ─────────── Battery optimization ───────────
 
+    /**
+     *  Another way to resolve this warning in case I later want to upload StreamBridge
+     *     to Google Play is to remove the programmatic battery exemption request,
+     *     and instead present the user with a one-time explanation screen that says:
+     *     "For optimal performance, please disable battery optimization for this app"
+     *      with a button that opens the settings page.
+     */
+
+    @Suppress("BatteryLife")
     private fun requestBatteryOptimizationExemption() {
         val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
         if (!pm.isIgnoringBatteryOptimizations(packageName)) {
             val intent = Intent(
                 android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                android.net.Uri.parse("package:$packageName")
+                "package:$packageName".toUri()
             )
             startActivity(intent)
         }
