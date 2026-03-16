@@ -8,7 +8,7 @@ The phone acts as a secure server that allows the PC client to connect and inter
 ## Features
 
 - 📷 **Live camera streaming** using CameraX
-- 💬 **Real-time messaging** between phone and PC
+- 💬 **Bidirectional real-time messaging** between phone and PC
 - 📁 **File transfer** from phone to PC
 - 📸 **Instant remote photo capture**
 - 🔒 **Secure communication over HTTPS (port 8080) and Websocket secure (port 8081)**
