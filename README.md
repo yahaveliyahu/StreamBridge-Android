@@ -181,9 +181,9 @@ app/
 
 ## 📸 Screenshots
 
-| Server Screen | Streaming Example |
-|---|---|
-| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/stream.jpg" width="260"> |
+| Server Screen | live camera screen | chat screen |
+|---|---|---|
+| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpg" width="260"> |
 
 ---
 
