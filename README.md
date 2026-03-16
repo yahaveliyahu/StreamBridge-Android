@@ -7,6 +7,12 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ---
 
+## Watch the App in Action
+
+▶️ **Demo video:** *(add soon)*
+
+---
+
 ## Features
 
 - 📷 **Live camera streaming** using CameraX
@@ -129,12 +135,6 @@ This means:
 - **ECDHE**
 - **ECDSA**
 - **AES-256-GCM**
-
----
-
-## Watch the App in Action
-
-▶️ **Demo video:** *(add soon)*
 
 ---
 
