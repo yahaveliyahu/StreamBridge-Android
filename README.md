@@ -7,23 +7,7 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ---
 
----
-
-## Watch the App in Action
-
-[![Watch the demo](https://img.youtube.com/vi/cjrfVI1Xj6k/maxresdefault.jpg)](https://youtube.com/shorts/cjrfVI1Xj6k)
-
----
-
-## 📸 Screenshots
-
-| Server Screen | live camera screen | chat screen | permission screen |
-|---|---|---|---|
-| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpeg" width="260"> |<img src="screenshots/permission screen.jpeg" width="260"> |
-
----
-
-## Features
+## ✨ Main Features
 
 - 📷 **Live camera streaming** using CameraX
 - 💬 **Bidirectional real-time messaging** between phone and PC
@@ -36,6 +20,12 @@ The phone acts as a secure server that allows the PC client to connect and inter
   - ECDSA authentication
   - AES-256-GCM encryption
 - 🤝 **Secure first-time pairing (TOFU – Trust On First Use)**
+
+---
+
+## Watch the App in Action
+
+▶️ **Demo video:** [Click here to watch the video](https://youtube.com/shorts/cjrfVI1Xj6k)
 
 ---
 
@@ -194,6 +184,14 @@ app/
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── gradle.properties
+
+---
+
+## 📸 Screenshots
+
+| Server Screen | live camera screen | chat screen | permission screen |
+|---|---|---|---|
+| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpeg" width="260"> |<img src="screenshots/permission screen.jpeg" width="260"> |
 
 ---
 
