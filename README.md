@@ -74,7 +74,8 @@ Phone (Android app):
 PC (Windows client):
 - Desktop application built with **Kotlin + JavaFX**
 - Connects to the phone over the local network
-- Sends commands and receives data in real time
+- Renders live video frames
+- Handles file downloads/uploads and messaging UI
 
 ---
 
