@@ -96,11 +96,14 @@ This ensures:
 
 ### Authentication
 
-Authentication is performed using **ECDSA**
+Authentication is performed using **ECDSA** certificates generated on the phone and verified by the client.
 
 ### Key exchange
 
-Key exchange is performed using **ECDHE**
+Key exchange is performed using **ECDHE**, ensuring:
+
+- perfect forward secrecy
+- new session keys for every connection
 
 ### Data Encryption
 
