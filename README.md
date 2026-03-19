@@ -11,7 +11,7 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 | Server Screen | live camera screen | chat screen | permission screen |
 |---|---|---|---|
-| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpg" width="260"> |<img src="screenshots/permission screen.jpg" width="260"> |
+| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpg" width="260"> |<img src="screenshots/permission screen.jpeg" width="260"> |
 
 ---
 
