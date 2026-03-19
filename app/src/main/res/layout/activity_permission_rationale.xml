@@ -1,0 +1,107 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:padding="@dimen/padding_0">
+
+    <!--  Icon area  -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/padding_32"
+        android:paddingTop="@dimen/padding_60">
+
+        <ImageView
+            android:id="@+id/permissionIcon"
+            android:layout_width="@dimen/width_175"
+            android:layout_height="@dimen/height_140"
+            android:layout_marginBottom="@dimen/margin_32"
+            android:contentDescription="@null"
+            android:src="@drawable/stream_bridge" />
+
+        <TextView
+            android:id="@+id/permissionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/margin_16"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.2"
+            android:textColor="#1A1A1A"
+            android:textSize="@dimen/size_22"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/permissionDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/margin_28"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4"
+            android:textColor="#555555"
+            android:textSize="@dimen/size_15" />
+
+        <!--  Steps list  -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="start"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/stepsLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_8"
+                android:gravity="start"
+                android:text="@string/to_enable_tap_go_to_settings_and"
+                android:textColor="#333333"
+                android:textSize="@dimen/size_14" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_4"
+                android:gravity="start"
+                android:text="@string/_1_tap_permissions"
+                android:textColor="#333333"
+                android:textSize="@dimen/size_14" />
+
+            <TextView
+                android:id="@+id/step2Text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_4"
+                android:gravity="start"
+                android:textColor="#333333"
+                android:textSize="@dimen/size_14" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start"
+                android:text="@string/_3_select_allow"
+                android:textColor="#333333"
+                android:textSize="@dimen/size_14" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!--  Bottom button  -->
+    <Button
+        android:id="@+id/goToSettingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/height_56"
+        android:layout_margin="@dimen/margin_24"
+        android:text="@string/go_to_settings"
+        android:textSize="@dimen/size_17"
+        android:textColor="@color/white"
+        android:background="@drawable/btn_oval_blue"
+        android:stateListAnimator="@null"/>
+</LinearLayout>

@@ -140,14 +140,13 @@ class StreamBridgeService : Service() {
 
     private fun startServersIfNeeded() {
         if (serverManager.isRunning()) return
-
-            try {
-                serverManager.startServer()
-                val ip = getLocalIp()
-                discoveryService.startDiscovery(ip, 8080)
-                updateNotification("Connected – $ip:8080")
-                Log.d(TAG, "Servers started on $ip")
-            } catch (e: Exception) { Log.e(TAG, "Failed to start servers", e) }
+        try {
+            serverManager.startServer()
+            val ip = getLocalIp()
+            discoveryService.startDiscovery(ip, 8080)
+            updateNotification("Connected – $ip:8080")
+            Log.d(TAG, "Servers started on $ip")
+        } catch (e: Exception) { Log.e(TAG, "Failed to start servers", e) }
     }
 
     private fun stopServers() {

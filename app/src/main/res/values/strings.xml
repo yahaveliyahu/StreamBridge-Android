@@ -4,7 +4,7 @@
     <string name="status_connected">מחובר באמצעות %1$s.</string>
 
     <string name="connected_to">Connected to %1$s</string>
-    <string name="not_connected">The phone and computer are not connected</string>
+    <string name="not_connected">Device is disconnected</string>
 
     <string name="status_running">Status: Running</string>
     <string name="status_stopped">Status: Stopped</string>
@@ -78,6 +78,12 @@
     <string name="file_jpg_shared">file.jpg</string>
     <string name="_120_kb">120 KB</string>
     <string name="x">X</string>
+
+
+    <string name="go_to_settings">Go to Settings</string>
+    <string name="_3_select_allow">3. Select Allow</string>
+    <string name="_1_tap_permissions">1. Tap Permissions</string>
+    <string name="to_enable_tap_go_to_settings_and">To enable, tap \'Go to Settings\' and:</string>
 
 
 </resources>

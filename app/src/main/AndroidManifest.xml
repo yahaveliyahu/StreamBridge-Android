@@ -13,6 +13,9 @@
 
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
@@ -56,7 +59,7 @@
         <activity android:name=".CameraActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".QRScannerActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".FileBrowserActivity" android:exported="false" android:launchMode="singleTop" android:screenOrientation="portrait"/>
-
+        <activity android:name=".PermissionRationaleActivity" android:exported="false" android:screenOrientation="portrait" android:theme="@style/Theme.StreamBridge.PermissionRationale"/>
         <!--
             ShareReceiverActivity: receives ACTION_SEND / ACTION_SEND_MULTIPLE from
             any app (Samsung Notes, My Files, Contacts, Gallery, Music, …).

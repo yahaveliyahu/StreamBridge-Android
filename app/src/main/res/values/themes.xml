@@ -1,9 +1,15 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.StreamBridge" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+<resources>
+    <style name="Base.Theme.StreamBridge" parent="Theme.Material3.DayNight.NoActionBar" />
+    <style name="Theme.StreamBridge" parent="Base.Theme.StreamBridge" />
+
+    <style name="Theme.StreamBridge.PermissionRationale" parent="Theme.MaterialComponents.DayNight">
+        <item name="colorPrimary">@color/button_blue</item>
+        <item name="colorPrimaryDark">@color/action_bar_black</item>
+        <item name="toolbarStyle">@style/BlackToolbar</item>
     </style>
 
-    <style name="Theme.StreamBridge" parent="Base.Theme.StreamBridge" />
+    <style name="BlackToolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="android:background">@color/action_bar_black</item>
+        <item name="titleTextColor">@android:color/white</item>
+    </style>
 </resources>

@@ -18,10 +18,8 @@ import com.google.mlkit.vision.common.InputImage
 import org.json.JSONObject
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import androidx.camera.core.ExperimentalGetImage
 
 
-@ExperimentalGetImage
 class QRScannerActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var backButton: Button
@@ -88,6 +86,7 @@ class QRScannerActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    @Suppress("UnsafeOptInUsageError")
     private fun processImageProxy(imageProxy: ImageProxy) {
         if (isProcessing) {
             imageProxy.close()
