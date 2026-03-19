@@ -9,6 +9,7 @@
         android:id="@+id/header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layoutDirection="ltr"
         android:paddingStart="@dimen/padding_12"
         android:paddingEnd="@dimen/padding_12"
         android:paddingTop="@dimen/padding_10"
