@@ -129,7 +129,6 @@ This means:
 ## Technologies Used
 
 - **Kotlin**- primary language
-- **HTML**
 - **Android SDK**
 - **CameraX** - camera streaming pipeline
 - **NanoHTTPD** - embedded HTTPS server
@@ -152,27 +151,31 @@ app/
 │ ├── java/dev/streambridge/
 │ │
 │ │ ├── MainActivity.kt
-│ │ ├── StreamBridgeService.kt
-│ │
+│ │ ├── MimeUntils.kt
+│ │ ├── NetworkUntils.kt
+│ │ ├── ChatHistoryStore.kt
+│ │ ├── ShareReceiverActivity.kt
+│ │ ├── QRScannerActivity.kt
+│ │ │
 │ │ ├── server/
-│ │ │ ├── HttpServer.kt
-│ │ │ ├── WebSocketHandler.kt
+│ │ │ ├── ServerManager.kt
+│ │ │ └── StreamBridgeService.kt
 │ │ │
 │ │ ├── camera/
-│ │ │ ├── CameraController.kt
-│ │ │ └── CameraStreamer.kt
-│ │ │
-│ │ ├── messaging/
-│ │ │ └── MessageHandler.kt
+│ │ │ └── CameraActivity.kt
 │ │ │
 │ │ ├── transfer/
-│ │ │ └── FileTransferManager.kt
+│ │ │ └── FileBrowserActivity.kt
 │ │ │
-│ │ └── security/
-│ │ ├── TLSManager.kt
-│ │ ├── ECDSAAuth.kt
-│ │ └── CryptoUtils.kt
-│ │
+│ │ ├── security/
+│ │ │ └── CertificateManager.kt
+│ │ │
+│ │ ├── discovery/
+│ │ │└── DiscoveryService.kt
+│ │ │
+│ │ ├── permission/  
+│ │  └── permissionRationaleActivity.kt
+│ │  
 │ └── res/
 │ ├── layout/
 │ ├── drawable/
