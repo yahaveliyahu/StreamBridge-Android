@@ -63,7 +63,8 @@ The phone acts as a secure server that allows the PC client to connect and inter
 StreamBridge uses a **client–server architecture over LAN** — no internet connection or cloud service required.
 
 Android Phone (Server) <-- HTTPS / WSS --> Windows PC (Client)
-Camera / Files / Messages Desktop UI
+
+Camera / Files / Messages                Desktop UI
 
 Phone (Android app):
 - Runs a local **HTTPS server using NanoHTTPD**
