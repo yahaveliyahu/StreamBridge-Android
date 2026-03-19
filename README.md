@@ -11,7 +11,7 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ## Watch the App in Action
 
-▶️ **Demo video:** [![Watch the demo](https://img.youtube.com/vi/cjrfVI1Xj6k/maxresdefault.jpg)](https://youtube.com/shorts/cjrfVI1Xj6k)
+[![▶ Watch Demo](https://img.youtube.com/vi/cjrfVI1Xj6k/maxresdefault.jpg)](https://youtube.com/shorts/cjrfVI1Xj6k)
 
 ---
 
