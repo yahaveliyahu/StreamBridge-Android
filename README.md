@@ -7,9 +7,11 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ---
 
-## Watch the App in Action
+## 📸 Screenshots
 
-▶️ **Demo video:** *(add soon)*
+| Server Screen | live camera screen | chat screen | permission screen |
+|---|---|---|---|
+| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpg" width="260"> |<img src="screenshots/permission screen.jpg" width="260"> |
 
 ---
 
@@ -184,14 +186,6 @@ app/
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── gradle.properties
-
----
-
-## 📸 Screenshots
-
-| Server Screen | live camera screen | chat screen |
-|---|---|---|
-| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpg" width="260"> |
 
 ---
 
