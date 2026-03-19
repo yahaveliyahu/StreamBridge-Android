@@ -7,6 +7,14 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ---
 
+---
+
+## Watch the App in Action
+
+▶️ **Demo video:** (https://youtube.com/shorts/cjrfVI1Xj6k)
+
+---
+
 ## 📸 Screenshots
 
 | Server Screen | live camera screen | chat screen | permission screen |
