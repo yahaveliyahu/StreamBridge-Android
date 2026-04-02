@@ -16,10 +16,14 @@ class DiscoveryService(private val context: Context) {
     private var isRunning = false
     private val tag = "DiscoveryService"
 
-    // List of IPs trusted via QR Scan
-//    private val trustedIps = mutableSetOf<String>()
-
     var onPairingRequest: ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
+
+    /**
+     * Called when a trusted PC auto-approves (no dialog needed).
+     * The callback parameter must start the WebSocket server before returning,
+     * so the response is only sent after the server is ready for the PC to connect.
+     */
+    var onAutoApproved: ((pcName: String, readyCallback: () -> Unit) -> Unit)? = null
 
     companion object {
         private const val SERVICE_TYPE = "_phonepclink._tcp."
@@ -31,11 +35,6 @@ class DiscoveryService(private val context: Context) {
         registerNsdService(phoneIp, phonePort)
         startPairingServer()
     }
-
-//    fun addTrustedIp(ip: String) {
-//        trustedIps.add(ip)
-//        Log.d(tag, "Added trusted IP: $ip")
-//    }
 
     private fun registerNsdService(phoneIp: String, phonePort: Int) {
         val serviceInfo = NsdServiceInfo().apply {
@@ -90,27 +89,41 @@ class DiscoveryService(private val context: Context) {
                 val request = input.readLine() ?: return@thread
                 val json = JSONObject(request)
                 val pcName = json.optString("name", "Unknown PC")
+                val pcFingerprint = json.optString("fingerprint", "")
 
                 // Get IP without the slash (e.g., "/192.168.1.5" -> "192.168.1.5")
                 val rawIp = client.inetAddress.hostAddress
                 val pcIp = rawIp?.replace("/", "") ?: "Unknown"
 
-                Log.d(tag, "Request from $pcName at $pcIp")
+                Log.d(tag, "Request from $pcName at $pcIp (fingerprint: ${pcFingerprint.take(20)}…)")
 
-                // CHECK TRUST: If scanned via QR, approve immediately!
-//                if (trustedIps.contains(pcIp)) {
-//                    Log.d(tag, "IP $pcIp is trusted. Auto-approving.")
-//                    sendResponse(output, true)
-//                    client.close()
-//                    // Notify UI just for info
-//                    onPairingRequest?.invoke(pcName, pcIp) { /* No-op, already handled */ }
-//                    return@thread
-//                }
+                // CHECK TRUST: If this PC's fingerprint was saved before, auto-approve!
+                if (pcFingerprint.isNotBlank() && TrustedPcStore.isTrusted(context, pcFingerprint)) {
+                    val savedName = TrustedPcStore.getPcName(context, pcFingerprint)
+                    Log.d(tag, "PC '$pcName' is trusted (saved as '$savedName'). Auto-approving.")
+                    // Start the WebSocket server BEFORE sending approval so the PC
+                    // can connect immediately when it receives the response.
+                    onAutoApproved?.invoke(pcName) {
+                        // Server is ready — now send the approval
+                        try {
+                            sendResponse(output, true)
+                        } catch (e: Exception) {
+                            Log.e(tag, "Error sending auto-approve response", e)
+                        } finally {
+                            try { client.close() } catch (_: Exception) {}
+                        }
+                    }
+                    return@thread
+                }
 
-                // Ask user to approve or deny
+                // Unknown PC — ask user to approve or deny
                 onPairingRequest?.invoke(pcName, pcIp) { approved ->
                     thread {
                         try {
+                            // If user approves AND we have a fingerprint, save for next time
+                            if (approved && pcFingerprint.isNotBlank()) {
+                                TrustedPcStore.saveTrusted(context, pcFingerprint, pcName)
+                            }
                             sendResponse(output, approved)
                         } catch (e: Exception) {
                             Log.e(tag, "Error sending response", e)

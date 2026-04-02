@@ -125,6 +125,7 @@ class QRScannerActivity : AppCompatActivity() {
             val pcIp = json.getString("ip")
             val pcPort = json.getInt("port")
             val pcName = json.optString("name", "Unknown PC")
+            val pcFingerprint = json.optString("fingerprint", "")
 
             runOnUiThread {
                 // Return the connection info
@@ -132,6 +133,7 @@ class QRScannerActivity : AppCompatActivity() {
                 resultIntent.putExtra("pc_ip", pcIp)
                 resultIntent.putExtra("pc_port", pcPort)
                 resultIntent.putExtra("pc_name", pcName)
+                resultIntent.putExtra("pc_fingerprint", pcFingerprint)
                 setResult(RESULT_OK, resultIntent)
                 finish()
             }

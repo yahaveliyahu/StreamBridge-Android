@@ -47,7 +47,6 @@ class MainActivity : AppCompatActivity() {
                 .edit { remove(permission) }
     }
 
-
     // ─────────── flags ───────────
 
     /**
@@ -117,33 +116,36 @@ class MainActivity : AppCompatActivity() {
 
     // ─────────── Battery optimization launcher ───────────
 
-    private val batteryOptimizationLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            waitingForBatteryResult = false
-            if (!isBatteryOptimizationIgnored()) {
-                // User declined — show our explanation dialog.
-                // Set the flag BEFORE showing the dialog so that the spurious
-                // onResume caused by the system dialog dismissing does not
-                // immediately re-launch the system dialog on top of ours
-                showingBatteryRationale = true
-                showBatteryRationaleDialog()
-            } else {
-                finishSetup()
-            }
+    private val batteryOptimizationLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        waitingForBatteryResult = false
+        if (!isBatteryOptimizationIgnored()) {
+            // User declined — show our explanation dialog.
+            // Set the flag BEFORE showing the dialog so that the spurious
+            // onResume caused by the system dialog dismissing does not
+            // immediately re-launch the system dialog on top of ours
+            showingBatteryRationale = true
+            showBatteryRationaleDialog()
+        } else {
+            finishSetup()
         }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    private val qrScanLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode != RESULT_OK) return@registerForActivityResult
-            val data = result.data ?: return@registerForActivityResult
-            val pcIp = data.getStringExtra("pc_ip") ?: return@registerForActivityResult
-            val pcName = data.getStringExtra("pc_name") ?: "Unknown PC"
-            // Trust this IP immediately and tell the PC to connect
-            notifyPcToConnect(pcIp)
-            Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
+    private val qrScanLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val data = result.data ?: return@registerForActivityResult
+        val pcIp = data.getStringExtra("pc_ip") ?: return@registerForActivityResult
+        val pcName = data.getStringExtra("pc_name") ?: "Unknown PC"
+        val pcFingerprint = data.getStringExtra("pc_fingerprint") ?: ""
+        // QR scan = explicit user trust. Save this PC so it auto-approves next time.
+        if (pcFingerprint.isNotBlank()) {
+            TrustedPcStore.saveTrusted(this, pcFingerprint, pcName)
         }
+        // Trust this IP immediately and tell the PC to connect
+        notifyPcToConnect(pcIp)
+        Toast.makeText(this, "Found $pcName ($pcIp) – check your PC!", Toast.LENGTH_LONG).show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -322,15 +324,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopServer() {
+        if (StreamBridgeService.instance == null) {
+            // Service is already dead — just sync the UI
+            updateUI()
+            return
+        }
         startService(Intent(this, StreamBridgeService::class.java).apply {
             action = StreamBridgeService.ACTION_STOP
         })
-        updateUI()
+        // Use postDelayed like startServer() does — gives the service time to
+        // process ACTION_STOP, call stopSelf(), and null out `instance` in onDestroy()
+        // before we read isRunning(). 800ms covers stopWebSocket(500) + HTTP stop.
+        stopServerButton.postDelayed({ updateUI() }, 800)
+
         Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show()
     }
 
     // ─────────── Pairing dialog ───────────
-
 
     private fun setupPairingCallback() {
         StreamBridgeService.onPairingRequestStatic = { pcName, pcIp, callback ->
@@ -354,6 +364,9 @@ class MainActivity : AppCompatActivity() {
     // ── QR → notify PC ─────────────────────────────────────────────────────────
 
     /**
+     * After scanning the PC's QR code, restart the WebSocket server so it is in a
+     * clean, idle state, then send the phone's IP and TLS certificate to the PC.
+     *
      * After scanning the PC's QR code, open a TCP connection to port 8083 on the PC
      * and send a JSON payload containing:
      *   - the phone's IP  (so the PC knows where to connect)
@@ -362,6 +375,26 @@ class MainActivity : AppCompatActivity() {
     private fun notifyPcToConnect(pcIp: String) {
         Thread {
             try {
+                // Ensure the HTTP server is up
+                val deadline = System.currentTimeMillis() + 5_000
+                while (StreamBridgeService.instance?.isRunning() != true) {
+                    if (System.currentTimeMillis() > deadline) break
+                    Thread.sleep(100)
+                }
+
+                // Wait for the WebSocket server to be fully warm (including TLS).
+                // The warmup was started in the background when the user tapped
+                // "Start Server". If it's already done, this returns immediately.
+                // If the user scanned QR very fast, we wait for it to finish
+                // instead of killing it and restarting from scratch.
+                val wsDeadline = System.currentTimeMillis() + 60_000
+                while (StreamBridgeService.instance?.isWebSocketReady() != true) {
+                    if (System.currentTimeMillis() > wsDeadline) {
+                        throw Exception("WebSocket server warmup timed out")
+                    }
+                    Thread.sleep(200)
+                }
+
                 // Gets the phone's IP
                 val myIp = getLocalIpAddress() ?: throw Exception("Could not get phone IP")
                 val certManager = CertificateManager()
@@ -379,14 +412,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 runOnUiThread {
-                    Toast.makeText(this, "Signal sent to PC! Check your screen.", Toast.LENGTH_LONG)
-                        .show()
+                    Toast.makeText(this, "Signal sent to PC! Check your screen.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
-                    Toast.makeText(this, "Failed to reach PC: ${e.message}", Toast.LENGTH_LONG)
-                        .show()
+                    Toast.makeText(this, "Failed to reach PC: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }.start()

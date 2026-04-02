@@ -39,8 +39,7 @@ class StreamBridgeService : Service() {
          * Set by MainActivity so the pairing AlertDialog appears in the right context.
          * The service forwards every pairing request through this callback.
          */
-        var onPairingRequestStatic:
-                ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
+        var onPairingRequestStatic: ((pcName: String, pcIp: String, callback: (Boolean) -> Unit) -> Unit)? = null
     }
 
     // Using applicationContext to not have an Activity
@@ -55,11 +54,61 @@ class StreamBridgeService : Service() {
         serverManager = ServerManager(applicationContext)
         discoveryService = DiscoveryService(applicationContext)
 
-        // Forward pairing requests to whoever is currently listening (MainActivity)
+        /**
+         * Forward pairing requests to whoever is currently listening (MainActivity).
+         * When the user approves, restart the WebSocket server BEFORE calling
+         * callback(true) so the server is in a fresh, clean state by the time
+         * the PC receives the approval and begins its TCP probe on port 8081
+         */
         discoveryService.onPairingRequest = { pcName, pcIp, callback ->
             val handler = onPairingRequestStatic
-            if (handler != null) handler(pcName, pcIp, callback)
-            else callback(false)   // No UI → auto-deny to avoid hanging socket
+            if (handler != null) {
+                handler(pcName, pcIp) { approved ->
+                    if (approved) {
+                        if (serverManager.isWebSocketReady()) {
+                            // Server was pre-warmed at startup — connect instantly
+                            Log.d(TAG, "WSS already ready — approving immediately")
+                            callback(true)
+                        } else {
+                            // Server not ready yet (user connected very fast after
+                            // starting the service) — start it now, then approve
+                            Thread {
+                                Log.d(TAG, "WSS not ready yet — waiting for warmup…")
+                                val deadline = System.currentTimeMillis() + 60_000
+                                while (!serverManager.isWebSocketReady()) {
+                                    if (System.currentTimeMillis() > deadline) break
+                                    Thread.sleep(200)
+                                }
+                                callback(serverManager.isWebSocketReady())
+                            }.also { it.isDaemon = true; it.name = "ws-wait-pairing" }.start()
+                        }
+                    } else {
+                        callback(false)
+                    }
+                }
+            } else {
+                callback(false)   // No UI → auto-deny to avoid hanging socket
+            }
+        }
+
+        // Trusted PC reconnecting — no dialog needed, just start the server.
+        discoveryService.onAutoApproved = { pcName, readyCallback ->
+            if (serverManager.isWebSocketReady()) {
+                // Server was pre-warmed at startup — respond instantly
+                Log.d(TAG, "WSS already ready for trusted PC '$pcName' — approving immediately")
+                readyCallback()
+            } else {
+                // Server not ready yet — start it, then respond
+                Thread {
+                    Log.d(TAG, "WSS not ready for trusted PC '$pcName' — waiting for warmup…")
+                    val deadline = System.currentTimeMillis() + 60_000
+                    while (!serverManager.isWebSocketReady()) {
+                        if (System.currentTimeMillis() > deadline) break
+                        Thread.sleep(200)
+                    }
+                    readyCallback()
+                }.also { it.isDaemon = true; it.name = "ws-start-auto" }.start()
+            }
         }
 
         createNotificationChannel()
@@ -70,7 +119,9 @@ class StreamBridgeService : Service() {
         when (intent?.action) {
             ACTION_START -> startServersIfNeeded()
             ACTION_STOP -> {
-                stopServers()
+                Thread {
+                    stopServers()
+                }.also { it.isDaemon = true; it.name = "server-stop" }.start()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -85,7 +136,7 @@ class StreamBridgeService : Service() {
 
             // If the Service came up without action
             else -> startServersIfNeeded()
-            }
+        }
         // If the system kills – return and re-launch
         return START_STICKY
     }
@@ -101,6 +152,8 @@ class StreamBridgeService : Service() {
     // ─────────── Public API ───────────
 
     fun isRunning(): Boolean = serverManager.isRunning()
+
+    fun isWebSocketReady(): Boolean = serverManager.isWebSocketReady()
 
     /**
      * The file MUST already exist at [path] (inside filesDir/shared/).
@@ -140,6 +193,7 @@ class StreamBridgeService : Service() {
 
     private fun startServersIfNeeded() {
         if (serverManager.isRunning()) return
+        serversStopped.set(false)
         try {
             serverManager.startServer()
             val ip = getLocalIp()
@@ -149,7 +203,10 @@ class StreamBridgeService : Service() {
         } catch (e: Exception) { Log.e(TAG, "Failed to start servers", e) }
     }
 
+    private val serversStopped = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private fun stopServers() {
+        if (!serversStopped.compareAndSet(false, true)) return  // already stopped
         try { discoveryService.stopDiscovery() } catch (e: Exception) { Log.e(TAG, "stopDiscovery", e) }
         try { serverManager.stopServer()       } catch (e: Exception) { Log.e(TAG, "stopServer",    e) }
     }

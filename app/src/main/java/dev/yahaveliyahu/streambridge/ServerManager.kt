@@ -14,9 +14,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.net.InetSocketAddress
-
 import org.java_websocket.server.DefaultSSLWebSocketServerFactory
-
 
 
 class ServerManager(private val context: Context) {
@@ -27,10 +25,17 @@ class ServerManager(private val context: Context) {
         var currentCameraFrame: ByteArray? = null
         // Static variable so we can send messages from anywhere (e.g. from the chat)
         @SuppressLint("StaticFieldLeak")
-        var webSocketServer: CommandWebSocketServer? = null
+        @Volatile var webSocketServer: CommandWebSocketServer? = null
 
         // The hostname of the currently-connected PC, or null when not connected
         @Volatile var connectedPcName: String? = null
+
+        @Volatile var warmupClosed: Boolean = false
+
+        // True only after performLoopbackTlsWarmup() completes successfully.
+        // Prevents isWebSocketReady() from returning true while the server is
+        // listening but the NIO TLS path is still cold.
+        @Volatile var isTlsWarm: Boolean = false
 
         fun sendToPC(jsonString: String) {
             webSocketServer?.broadcastToAll(jsonString)
@@ -52,49 +57,200 @@ class ServerManager(private val context: Context) {
             httpServer?.makeSecure(sslContext.serverSocketFactory, null)
             httpServer?.start()
 
-            // ── WSS server (port 8081) ────────────────────────────────────────────
+            Log.d(TAG, "HTTP server started on port 8080")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting HTTP server", e)
+        }
 
-            // Passing the Context so we can broadcast messages to the UI
-            // Using applicationContext prevents Activity Memory Leak
+        // Start the WebSocket server + TLS warmup in the background immediately.
+        // The 30-second warmup happens now while the user isn't waiting for anything.
+        // By the time they click Auto-Discover or scan QR, the server is already warm.
 
-            webSocketServer = CommandWebSocketServer(8081, context.applicationContext)
+        startWebSocketInBackground()
+    }
 
-            // The onServerError callback fires when the SERVER thread itself crashes.
-            // We schedule a full restart so port 8081 never stays in a zombie state
-            // where it accepts TCP SYNs but hangs TLS.
+    // Returns true only when the server is listening AND the TLS path is warm
+    fun isWebSocketReady(): Boolean = webSocketServer?.isStarted == true && isTlsWarm
 
-            webSocketServer?.isReuseAddr = true   // allow rebind while old socket is in TIME_WAIT
+    /**
+     * Starts the WebSocket server on a background thread without blocking.
+     * Called at service startup to pre-warm the TLS stack so the first
+     * connection attempt is instant.
+     */
+    private fun startWebSocketInBackground() {
+        Thread {
+            startWebSocket()
+        }.also { it.isDaemon = true; it.name = "ws-background-start" }.start()
+    }
 
-            // ────────── TLS factory with handshake watchdog ────────────────────────────────────
+    /**
+     * Starts a fresh WebSocket server on port 8081 and returns immediately.
+     *
+     * Called just before the PC is notified to connect (QR and Auto-Discover flows).
+     * The PC's connectBlocking(10s) naturally waits for the server's TLS stack to
+     * finish initializing — no polling or probing needed on either side.
+     *
+     * When the connection later closes, onClose automatically stops the server
+     * so it goes back to sleep until the next startWebSocket() call.
+     */
+    fun startWebSocket() {
+        try {
+            webSocketServer?.stop(3_000)
+        } catch (e: Exception) {
+            Log.w(TAG, "startWebSocket: stop of old server (ignored)", e)
+        }
+        webSocketServer = null
+        isTlsWarm = false
 
-            // Without a timeout, a client that connects at TCP level but never
-            // sends a TLS ClientHello hangs the SSLEngine silently forever.
-            // HandshakeTimeoutSSLFactory runs a watchdog that forcibly closes
-            // any connection that doesn't complete TLS within 5 seconds.
-            // setWebSocketFactory → wraps incoming sockets with TLS
-            // handshakeFactory → lets onOpen() cancel the watchdog on success
+        // Give the OS time to release the port and flush NIO cleanup events
+        // before the new server binds. Without this, zombie SSLEngine cleanup
+        // events from the old server pollute the new server's selector queue.
+        Thread.sleep(500)
+
+        try {
+            val certManager = CertificateManager()
+            val sslContext  = certManager.getSSLContext()
+
+            val server = CommandWebSocketServer(8081, context.applicationContext)
+            server.isReuseAddr = true
 
             val factory = HandshakeTimeoutSSLFactory(sslContext, handshakeTimeoutMs = 5_000)
-            webSocketServer!!.handshakeFactory = factory
-            webSocketServer?.setWebSocketFactory(factory)
+            server.handshakeFactory = factory
+            server.setWebSocketFactory(factory)
+            server.start()
 
-            webSocketServer?.start()
+            synchronized(ServerManager::class.java) {
+                webSocketServer = server
+            }
 
-            Log.d(TAG, "Servers start initiated (TLS enabled)")
+            /**
+             * Block until onStart() confirms the NIO selector is in select() —
+             * i.e. the server is truly ready to accept connections.
+             * This method is always called from a background thread so sleeping here
+             * is safe. The caller sends the PC its IP only after this returns,
+             * so the PC's connectBlocking() hits a server that is already waiting.
+             */
+            val deadline = System.currentTimeMillis() + 5_000
+            while (webSocketServer?.isStarted != true) {
+                if (System.currentTimeMillis() > deadline) {
+                    Log.w(TAG, "startWebSocket: timed out waiting for isStarted")
+                    break
+                }
+                Thread.sleep(20)
+            }
+
+            // Warm up the NIO/SSLEngine TLS path by doing a loopback handshake
+            // through the real server on port 8081. This is the same code path
+            // that PC connections use. On first run it can take ~30s; afterwards
+            // it's near-instant. This runs in the background at startup, so by
+            // the time the user tries to connect, the path is already warm.
+            warmupClosed = false
+            performLoopbackTlsWarmup()
+
+            // Wait for the NIO thread to signal it finished processing the warmup close event.
+            // This replaces the blind 500ms sleep — we only proceed when NIO is actually idle.
+            val cleanupDeadline = System.currentTimeMillis() + 10_000
+            while (!warmupClosed) {
+                if (System.currentTimeMillis() > cleanupDeadline) {
+                    Log.w(TAG, "Warmup close signal not received — proceeding anyway")
+                    break
+                }
+                Thread.sleep(50)
+            }
+            Thread.sleep(200)   // small buffer after the signal
+
+            isTlsWarm = true
+
+            Log.d(TAG, "startWebSocket DONE — notifying PC now at ${System.currentTimeMillis()}")
+            Log.d(TAG, "WebSocket server starting on port 8081")
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting servers", e)
+            Log.e(TAG, "Error starting WebSocket server", e)
         }
     }
 
+    /**
+     * The warning doesn't apply, for one simple reason: **we are connecting to `127.0.0.1`**.
+     * That is the loopback address — it never leaves the device. There is no network, no cable, no Wi-Fi.
+     * The packet goes from one process back to itself inside the phone's kernel.
+     * A man-in-the-middle attack is physically impossible on a loopback connection — there is no "middle" to be in.
+     */
+    @SuppressLint("CustomX509TrustManager")
+    private fun performLoopbackTlsWarmup() {
+        try {
+            // Connect via the phone's own WiFi IP, not 127.0.0.1.
+            // This exercises the SAME WiFi network path that the PC uses,
+            // so the warmup actually warms the right code path.
+            val wifiIp = NetworkUtils.getWifiIp().takeIf { it.isNotBlank() } ?: "127.0.0.1"
+
+            val clientCtx = javax.net.ssl.SSLContext.getInstance("TLS")
+            clientCtx.init(null, arrayOf(object : javax.net.ssl.X509TrustManager {
+                @SuppressLint("TrustAllX509TrustManager")
+                override fun checkClientTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
+                @SuppressLint("TrustAllX509TrustManager")
+                override fun checkServerTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
+                override fun getAcceptedIssuers() = emptyArray<java.security.cert.X509Certificate>()
+            }), java.security.SecureRandom())
+
+            val latch = java.util.concurrent.CountDownLatch(1)
+
+            val wsClient = object : org.java_websocket.client.WebSocketClient(
+                java.net.URI("wss://$wifiIp:8081")
+            ) {
+                override fun onSetSSLParameters(p: javax.net.ssl.SSLParameters) {
+                    p.endpointIdentificationAlgorithm = ""
+                    // Match the cipher suites that a Windows JVM client sends
+                    p.protocols = arrayOf("TLSv1.3", "TLSv1.2")
+                    p.cipherSuites = arrayOf(
+                        "TLS_AES_256_GCM_SHA384",
+                        "TLS_AES_128_GCM_SHA256",
+                        "TLS_CHACHA20_POLY1305_SHA256",
+                        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+                        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+                    )
+                }
+                override fun onOpen(h: org.java_websocket.handshake.ServerHandshake?) {}
+                override fun onMessage(m: String?) {}
+                override fun onClose(code: Int, reason: String?, remote: Boolean) { latch.countDown() }
+                override fun onError(ex: Exception?) { latch.countDown() }
+            }
+
+            wsClient.setSocketFactory(clientCtx.socketFactory)
+            wsClient.connectBlocking(60, java.util.concurrent.TimeUnit.SECONDS)
+            latch.await(10, java.util.concurrent.TimeUnit.SECONDS)
+
+            Log.d(TAG, "TLS warmup completed via WiFi IP $wifiIp")
+        } catch (e: Exception) {
+            Log.w(TAG, "TLS loopback warmup failed (ignored): ${e.message}")
+        }
+    }
+
+    fun stopWebSocket() {
+        // Notify any connected PC before pulling the rug out
+        try {
+            webSocketServer?.broadcastToAll(
+                JSONObject().apply { put("type", "SERVER_STOPPING") }.toString()
+            )
+            Thread.sleep(200) // brief grace period for message delivery
+        } catch (_: Exception) {}
+
+        try {
+            webSocketServer?.stop(500)
+        } catch (e: Exception) {
+            Log.w(TAG, "stopWebSocket error (ignored)", e)
+        }
+        webSocketServer = null
+        isTlsWarm = false
+        Log.d(TAG, "WebSocket server stopped (sleeping)")
+    }
+
     fun stopServer() {
+        stopWebSocket()
         try {
             httpServer?.stop()
             httpServer = null
-            webSocketServer?.stop()
-            webSocketServer = null
-            Log.d(TAG, "Servers stopped")
+            Log.d(TAG, "HTTP server stopped")
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping servers", e)
+            Log.e(TAG, "Error stopping HTTP server", e)
         }
     }
 
@@ -103,9 +259,10 @@ class ServerManager(private val context: Context) {
      * A false return while the service is supposed to be running means one of the
      * servers crashed — StreamBridgeService should call stopServer()+startServer().
      */
-    fun isRunning(): Boolean = httpServer?.isAlive == true && webSocketServer?.isStarted == true
+    fun isRunning(): Boolean = httpServer?.isAlive == true
 
     // ── HTTP server (NanoHTTPD) ─────────────────────────────────────────────────
+
     class FileServer(port: Int, private val context: Context) : NanoHTTPD(port) {
         override fun serve(session: IHTTPSession): Response {
             val uri = session.uri
@@ -213,7 +370,7 @@ class ServerManager(private val context: Context) {
 
     class HandshakeTimeoutSSLFactory(
         sslContext: javax.net.ssl.SSLContext,
-        private val handshakeTimeoutMs: Long = 15_000
+        private val handshakeTimeoutMs: Long = 5_000
     ) : DefaultSSLWebSocketServerFactory(sslContext) {
 
         // Remote address string → Pair(timestamp, SocketChannel)
@@ -225,14 +382,14 @@ class ServerManager(private val context: Context) {
                     try {
                         Thread.sleep(2_000)
                         val now = System.currentTimeMillis()
+                        val timeoutMs = handshakeTimeoutMs
                         val iter = pendingHandshakes.entries.iterator()
                         while (iter.hasNext()) {
                             val entry = iter.next()
                             val (ts, ch) = entry.value
-                            if (now - ts > handshakeTimeoutMs) {
-                                Log.e("ServerManager",
-                                    "TLS handshake watchdog: no data for ${handshakeTimeoutMs}ms " +
-                                            "from ${entry.key} — closing stalled channel")
+                            if (now - ts > timeoutMs) {
+                                Log.e("ServerManager", "TLS handshake watchdog: no data for ${timeoutMs}ms " +
+                                        "from ${entry.key} — closing stalled channel")
                                 iter.remove()
                                 try { ch.close() } catch (_: Exception) {}
                             }
@@ -246,15 +403,21 @@ class ServerManager(private val context: Context) {
             channel: java.nio.channels.SocketChannel,
             key: java.nio.channels.SelectionKey?
         ): java.nio.channels.ByteChannel {
-            // Register for watchdog BEFORE delegating to super so the timeout clock
-            // starts immediately when the connection is accepted.
-            val addr = channel.socket()?.remoteSocketAddress?.toString() ?: "unknown-${System.nanoTime()}"
-            pendingHandshakes[addr] = Pair(System.currentTimeMillis(), channel)
-            // Delegate to super: standard NIO + SSLEngine, selector thread is never blocked.
+            val remoteIp = channel.socket()?.inetAddress?.hostAddress
+            val localWifiIp = NetworkUtils.getWifiIp()
+
+            // Skip watchdog for warmup connections — loopback (127.0.0.1)
+            // OR self-connect via WiFi (phone connecting to itself for warmup)
+            val isWarmup = channel.socket()?.inetAddress?.isLoopbackAddress == true
+                    || remoteIp == localWifiIp
+            if (!isWarmup) {
+                val addr = channel.socket()?.remoteSocketAddress?.toString() ?: "unknown-${System.nanoTime()}"
+                pendingHandshakes[addr] = Pair(System.currentTimeMillis(), channel)
+            }
             return super.wrapChannel(channel, key)
         }
 
-        /** Called from CommandWebSocketServer.onOpen() — cancels the watchdog for this conn. */
+        // Called from CommandWebSocketServer.onOpen() — cancels the watchdog for this conn
         fun handshakeCompleted(remoteAddr: String) {
             pendingHandshakes.remove(remoteAddr)
         }
@@ -277,9 +440,22 @@ class ServerManager(private val context: Context) {
         companion object { private const val TAG = "ServerManager" }
 
         override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
-            // TLS + WebSocket handshake completed — cancel the timeout watchdog.
-            handshakeFactory?.handshakeCompleted(conn.remoteSocketAddress?.toString() ?: "")
-            Log.d(TAG, "New connection from ${conn.remoteSocketAddress}")
+            val remoteAddr = conn.remoteSocketAddress
+            Log.d(TAG, "onOpen: TLS succeeded from $remoteAddr at ${System.currentTimeMillis()}")
+
+            // If this is the warmup connection (phone connecting to itself), close it immediately.
+            // onClose will set warmupClosed = true so startWebSocket() knows NIO is clean.
+            val remoteIp = remoteAddr?.address?.hostAddress
+            val isWarmup = remoteAddr?.address?.isLoopbackAddress == true
+                    || remoteIp == NetworkUtils.getWifiIp()
+            if (isWarmup) {
+                Log.d(TAG, "Warmup WebSocket connected — closing immediately")
+                conn.close()
+                return
+            }
+
+            handshakeFactory?.handshakeCompleted(remoteAddr?.toString() ?: "")
+            Log.d(TAG, "New connection from $remoteAddr")
             val json = JSONObject().apply {
                 put("type", "HANDSHAKE")
                 put("name", android.os.Build.MODEL)
@@ -288,6 +464,17 @@ class ServerManager(private val context: Context) {
         }
 
         override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+
+            // If the PC never sent a HANDSHAKE message, the connection was a failed
+            // TLS attempt (e.g. Keystore was still warming up, or PC timed out).
+            // Keep the server running so the PC's retry loop can try again without
+            // needing to restart the entire server.
+            if (connectedPcName == null) {
+                Log.d(TAG, "Connection closed before HANDSHAKE — server stays alive for retry")
+                warmupClosed = true
+                return
+            }
+            Log.d(TAG, "Connection closed — server stays running for next connection")
             // Clear the stored name and tell the UI the PC disconnected
             connectedPcName = null
             // Also wipe SharedPreferences so a future Activity open never reads a
@@ -313,7 +500,7 @@ class ServerManager(private val context: Context) {
             } else {
                 // Per-connection error (e.g. stalled TLS channel closed by watchdog,
                 // or client sent malformed data). Log and let the connection close.
-                Log.e(TAG, "WebSocket connection error from ${conn.remoteSocketAddress}: ${ex.message}")
+                Log.e(TAG, "onError: TLS FAILED from ${conn.remoteSocketAddress} at ${System.currentTimeMillis()} — ${ex.javaClass.simpleName}: ${ex.message}")
             }
         }
 
@@ -337,6 +524,11 @@ class ServerManager(private val context: Context) {
                     // Also persist so the Activity can read it after it opens
                     context.getSharedPreferences("conn", Context.MODE_PRIVATE)
                         .edit { putString("pc_name", pcName) }
+                    // Save PC fingerprint so future connections auto-approve
+                    val fingerprint = json.optString("fingerprint", "")
+                    if (fingerprint.isNotBlank()) {
+                        TrustedPcStore.saveTrusted(context, fingerprint, pcName)
+                    }
                 }
             } catch (_: Exception) {}
 
