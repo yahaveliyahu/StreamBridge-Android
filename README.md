@@ -191,11 +191,11 @@ app/
 
 | Server Screen | live camera screen |
 |---|---|
-| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> 
+| <img src="screenshots/server.jpg" width="300"> | <img src="screenshots/live_camera.jpg" width="300"> 
 
 chat screen | permission screen |
 |---|---|
-|<img src="screenshots/chat_server.jpeg" width="260"> |<img src="screenshots/permission screen.jpeg" width="260"> |
+|<img src="screenshots/chat_server.jpeg" width="300"> |<img src="screenshots/permission screen.jpeg" width="300"> |
 
 ---
 
