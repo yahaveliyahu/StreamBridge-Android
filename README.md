@@ -7,13 +7,7 @@ The phone acts as a secure server that allows the PC client to connect and inter
 
 ---
 
-## Watch the App in Action
-
-▶️ **Demo video:** *(add soon)*
-
----
-
-## Features
+## ✨ Main Features
 
 - 📷 **Live camera streaming** using CameraX
 - 💬 **Bidirectional real-time messaging** between phone and PC
@@ -26,6 +20,12 @@ The phone acts as a secure server that allows the PC client to connect and inter
   - ECDSA authentication
   - AES-256-GCM encryption
 - 🤝 **Secure first-time pairing (TOFU – Trust On First Use)**
+
+---
+
+## Watch the App in Action
+
+▶️ **Demo video:** [Click here to watch the video](https://youtube.com/shorts/VvMnRP8pd88)
 
 ---
 
@@ -63,7 +63,8 @@ The phone acts as a secure server that allows the PC client to connect and inter
 StreamBridge uses a **client–server architecture over LAN** — no internet connection or cloud service required.
 
 Android Phone (Server) <-- HTTPS / WSS --> Windows PC (Client)
-Camera / Files / Messages Desktop UI
+
+Camera / Files / Messages                Desktop UI
 
 Phone (Android app):
 - Runs a local **HTTPS server using NanoHTTPD**
@@ -74,7 +75,8 @@ Phone (Android app):
 PC (Windows client):
 - Desktop application built with **Kotlin + JavaFX**
 - Connects to the phone over the local network
-- Sends commands and receives data in real time
+- Renders live video frames
+- Handles file downloads/uploads and messaging UI
 
 ---
 
@@ -94,11 +96,14 @@ This ensures:
 
 ### Authentication
 
-Authentication is performed using **ECDSA**
+Authentication is performed using **ECDSA** certificates generated on the phone and verified by the client.
 
 ### Key exchange
 
-Key exchange is performed using **ECDHE**
+Key exchange is performed using **ECDHE**, ensuring:
+
+- perfect forward secrecy
+- new session keys for every connection
 
 ### Data Encryption
 
@@ -124,7 +129,6 @@ This means:
 ## Technologies Used
 
 - **Kotlin**- primary language
-- **HTML**
 - **Android SDK**
 - **CameraX** - camera streaming pipeline
 - **NanoHTTPD** - embedded HTTPS server
@@ -147,27 +151,31 @@ app/
 │ ├── java/dev/streambridge/
 │ │
 │ │ ├── MainActivity.kt
-│ │ ├── StreamBridgeService.kt
-│ │
+│ │ ├── MimeUntils.kt
+│ │ ├── NetworkUntils.kt
+│ │ ├── ChatHistoryStore.kt
+│ │ ├── ShareReceiverActivity.kt
+│ │ ├── QRScannerActivity.kt
+│ │ │
 │ │ ├── server/
-│ │ │ ├── HttpServer.kt
-│ │ │ ├── WebSocketHandler.kt
+│ │ │ ├── ServerManager.kt
+│ │ │ └── StreamBridgeService.kt
 │ │ │
 │ │ ├── camera/
-│ │ │ ├── CameraController.kt
-│ │ │ └── CameraStreamer.kt
-│ │ │
-│ │ ├── messaging/
-│ │ │ └── MessageHandler.kt
+│ │ │ └── CameraActivity.kt
 │ │ │
 │ │ ├── transfer/
-│ │ │ └── FileTransferManager.kt
+│ │ │ └── FileBrowserActivity.kt
 │ │ │
-│ │ └── security/
-│ │ ├── TLSManager.kt
-│ │ ├── ECDSAAuth.kt
-│ │ └── CryptoUtils.kt
-│ │
+│ │ ├── security/
+│ │ │ └── CertificateManager.kt
+│ │ │
+│ │ ├── discovery/
+│ │ │└── DiscoveryService.kt
+│ │ │
+│ │ ├── permission/  
+│ │  └── permissionRationaleActivity.kt
+│ │  
 │ └── res/
 │ ├── layout/
 │ ├── drawable/
@@ -181,9 +189,13 @@ app/
 
 ## 📸 Screenshots
 
-| Server Screen | live camera screen | chat screen |
-|---|---|---|
-| <img src="screenshots/server.jpg" width="260"> | <img src="screenshots/live_camera.jpg" width="260"> |<img src="screenshots/chat_server.jpg" width="260"> |
+| Server Screen | live camera screen |
+|---|---|
+| <img src="screenshots/server.jpg" width="300"> | <img src="screenshots/live_camera.jpg" width="300"> 
+
+chat screen | permission screen |
+|---|---|
+|<img src="screenshots/chat_server.jpeg" width="300"> |<img src="screenshots/permission screen.jpeg" width="300"> |
 
 ---
 
